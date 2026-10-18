@@ -1,0 +1,91 @@
+name: 🐞 Bug 报告
+description: 报告一个可复现的问题，帮助改进作业哨兵
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！提交前请先搜索是否已有相同 Issue。
+        涉及安全问题的，请勿公开提交，按 [SECURITY.md](https://github.com/suxiangyu138/coursework-tracker/blob/main/SECURITY.md) 私下联系。
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 清楚、简洁地描述问题是什么
+      placeholder: 例如：勾选完成后，倒计时列仍显示剩余时间
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 一步一步写清楚，越具体越好
+      placeholder: |
+        1. 打开程序，进入「全部作业」
+        2. 新建作业，截止时间设为 10 分钟后
+        3. 双击状态列标记完成
+        4. 观察倒计时列
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 程序版本
+      description: 菜单「帮助 → 关于」中可见，或 jar 文件名
+      placeholder: v1.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Linux
+        - 其他（请在描述中说明）
+    validations:
+      required: true
+
+  - type: input
+    id: jdk
+    attributes:
+      label: JDK 版本
+      description: 终端执行 `java -version` 的结果
+      placeholder: 例如 OpenJDK 17.0.12 / Oracle JDK 25
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志与截图
+      description: 粘贴 `logs/app.log` 中的相关片段，或拖入截图
+      render: shell
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 自查
+      options:
+        - label: 我已搜索过现有 Issue，未发现重复
+          required: true
+        - label: 我已确认使用的是最新版本
+          required: true

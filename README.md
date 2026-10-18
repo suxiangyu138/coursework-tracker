@@ -4,6 +4,7 @@
 [![GitHub](https://img.shields.io/badge/GitHub-coursework--tracker-181717?logo=github)](https://github.com/suxiangyu138/coursework-tracker)
 [![Gitee](https://img.shields.io/badge/Gitee-coursework--tracker-C71D23?logo=gitee)](https://gitee.com/suxiangyu138/coursework-tracker)
 [![Java](https://img.shields.io/badge/Java-17-orange?logo=openjdk)](https://openjdk.org/projects/jdk/17/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > 一学期十几门课，作业截止日散落在雨课堂、学习通、班级群和老师的口头通知里。
 > 作业哨兵把它们收进一个常驻桌面的小工具：**还剩几天、先做哪个、做完多少、期末要考多少分**。
@@ -163,7 +164,9 @@ java -jar target/coursework-tracker-1.0.0.jar --screenshot=docs/assets/main-ligh
 ```text
 Java课程设计_作业截止提醒与进度追踪器/
 ├── pom.xml
-├── README.md / CHANGELOG.md
+├── README.md / CHANGELOG.md / LICENSE
+├── CONTRIBUTING.md / CODE_OF_CONDUCT.md / SECURITY.md
+├── .github/                    # CI 流水线、Issue 与 PR 模板
 ├── .gitignore / .gitattributes / .editorconfig
 ├── docs/                       # 需求、方案、计划、测试、交付说明、截图
 ├── src/main/java/com/coursework/tracker/
@@ -206,6 +209,29 @@ Java课程设计_作业截止提醒与进度追踪器/
 
 ---
 
+## 仓库规范
+
+| 文件 | 说明 |
+| --- | --- |
+| [LICENSE](LICENSE) | MIT 许可证 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 环境准备、分支与提交规范、测试要求、PR 流程 |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | 行为准则 |
+| [SECURITY.md](SECURITY.md) | 安全策略与漏洞报告方式 |
+| [.github/ISSUE_TEMPLATE](.github/ISSUE_TEMPLATE) | Bug / 功能建议模板 |
+| [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md) | PR 自查清单 |
+| [.github/workflows/ci.yml](.github/workflows/ci.yml) | GitHub Actions：测试 → 打包 → 自检 → 上传产物 |
+
+## 参与贡献
+
+- 提交代码前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)
+- Bug 与功能建议请使用 Issue 模板，Gitee 镜像也可提交
+- 功能改动请同步更新 `CHANGELOG.md` 与相关文档
+- 参与本项目即表示同意 [行为准则](CODE_OF_CONDUCT.md)
+
+如果这个项目对你有帮助，欢迎点一个 ⭐ Star 支持一下。
+
+---
+
 ## 常见问题
 
 | 问题 | 处理 |
@@ -218,6 +244,8 @@ Java课程设计_作业截止提醒与进度追踪器/
 
 ---
 
-## 许可
+## 许可证
 
-本项目为 Java 语言程序设计课程作业，仅供学习与交流使用。
+本项目基于 [MIT License](LICENSE) 开源，Copyright (c) 2026 苏巷雨。
+
+你可以自由使用、修改、分发本项目，只需保留版权声明与许可声明。本项目最初为 Java 语言程序设计课程作业，欢迎用于学习与二次开发。

@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 使用文档与常见问题
+    url: https://github.com/suxiangyu138/coursework-tracker#常见问题
+    about: 先看看 README 与技术文档，很多问题已有答案
+
+  - name: 🇨🇳 Gitee 镜像仓库
+    url: https://gitee.com/suxiangyu138/coursework-tracker/issues
+    about: 国内访问更快，也可以在 Gitee 提交 Issue

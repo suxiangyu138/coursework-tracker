@@ -6,6 +6,20 @@
 
 ---
 
+## [Unreleased]
+
+### 新增
+
+- 开源仓库标准文件：MIT LICENSE、CONTRIBUTING.md、CODE_OF_CONDUCT.md、SECURITY.md
+- GitHub Issue 表单（Bug 报告 / 功能建议）与 Pull Request 模板
+- README 增加许可证徽章、仓库规范与「参与贡献」章节
+- GitHub `main` 分支保护：要求 CI「Build & Test (JDK 17)」通过
+
+### 变更
+
+- GitHub / Gitee 双平台仓库简介与主页统一，互相链接
+
+---
 ## [1.0.0] · 2026-10-18
 
 ### 新增
