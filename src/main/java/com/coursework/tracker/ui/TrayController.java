@@ -135,6 +135,15 @@ public final class TrayController {
                 "窗口已最小化到托盘，作业提醒会继续生效。", TrayIcon.MessageType.INFO);
     }
 
+    /** 开机自启（--minimized）时的一次性提示。 */
+    public void notifyStarted() {
+        if (trayIcon == null) {
+            return;
+        }
+        trayIcon.displayMessage("作业哨兵已在后台运行",
+                "双击托盘图标打开主界面；作业提醒会继续生效。", TrayIcon.MessageType.INFO);
+    }
+
     public void testNotification() {
         if (trayIcon != null) {
             trayIcon.displayMessage("作业哨兵 · 测试提醒",

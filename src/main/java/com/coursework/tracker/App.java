@@ -2,6 +2,7 @@ package com.coursework.tracker;
 
 import com.coursework.tracker.core.AppContext;
 import com.coursework.tracker.core.AppPaths;
+import com.coursework.tracker.core.AutoStartManager;
 import com.coursework.tracker.core.ClockProvider;
 import com.coursework.tracker.core.LoggingSetup;
 import com.coursework.tracker.core.SingleInstanceGuard;
@@ -18,9 +19,13 @@ import java.util.logging.Logger;
  * 程序入口。
  *
  * <pre>
- * java -jar coursework-tracker-1.0.0.jar              正常启动（托盘常驻）
- * java -jar coursework-tracker-1.0.0.jar --selftest    无界面自检：建库、造数据、算成绩、跑提醒
- * java -jar coursework-tracker-1.0.0.jar --seed-demo  仅生成示例数据后退出
+ * java -jar coursework-tracker-1.0.0.jar                  正常启动（托盘常驻）
+ * java -jar coursework-tracker-1.0.0.jar --minimized       启动后直接进托盘，不弹窗口
+ * java -jar coursework-tracker-1.0.0.jar --selftest        无界面自检：建库、造数据、算成绩、跑提醒
+ * java -jar coursework-tracker-1.0.0.jar --seed-demo       仅生成示例数据后退出
+ * java -jar coursework-tracker-1.0.0.jar --autostart=status 查看开机自启状态
+ * java -jar coursework-tracker-1.0.0.jar --autostart=on     开启开机自启
+ * java -jar coursework-tracker-1.0.0.jar --autostart=off    关闭开机自启
  * </pre>
  */
 public final class App {
@@ -33,6 +38,17 @@ public final class App {
     public static void main(String[] args) {
         AppPaths.init();
         LoggingSetup.init(AppPaths.logDir());
+
+        boolean minimized = Arrays.asList(args).contains("--minimized");
+        String autoStartAction = null;
+        for (String arg : args) {
+            if (arg.startsWith("--autostart=")) {
+                autoStartAction = arg.substring("--autostart=".length());
+            }
+        }
+        if (autoStartAction != null) {
+            System.exit(handleAutoStart(autoStartAction));
+        }
 
         if (Arrays.asList(args).contains("--selftest")) {
             System.exit(SelfTest.run());
@@ -80,12 +96,20 @@ public final class App {
             return;
         }
 
+        final boolean startMinimized = minimized;
         SwingUtilities.invokeLater(() -> {
             MainFrame frame = new MainFrame(context);
-            frame.setVisible(true);
             frame.installTray();
+            boolean hiddenToTray = startMinimized && frame.trayAvailable();
+            if (hiddenToTray) {
+                frame.notifyStartedInTray();
+            } else {
+                frame.setVisible(true);
+            }
             context.reminderService().start();
-            frame.firstRunHint();
+            if (!hiddenToTray) {
+                frame.firstRunHint();
+            }
         });
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -98,6 +122,34 @@ public final class App {
         }, "shutdown-hook"));
 
         LOG.info("作业哨兵启动完成，数据文件=" + AppPaths.databaseFile());
+    }
+
+    /** 处理 --autostart=on|off|status，返回进程退出码。 */
+    private static int handleAutoStart(String action) {
+        try {
+            switch (action.toLowerCase()) {
+                case "status" -> {
+                    System.out.println("[autostart] 已启用=" + AutoStartManager.isEnabled());
+                    System.out.println("[autostart] 命令=" + AutoStartManager.commandLine());
+                }
+                case "on" -> {
+                    AutoStartManager.enable();
+                    System.out.println("[autostart] 已开启开机自启");
+                }
+                case "off" -> {
+                    AutoStartManager.disable();
+                    System.out.println("[autostart] 已关闭开机自启");
+                }
+                default -> {
+                    System.out.println("用法: --autostart=on|off|status");
+                    return 2;
+                }
+            }
+            return 0;
+        } catch (Exception e) {
+            System.err.println("[autostart] 操作失败: " + e.getMessage());
+            return 1;
+        }
     }
 
     /** 渲染主窗口并保存 PNG，用于文档截图与无人工验收。 */

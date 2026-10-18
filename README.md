@@ -83,7 +83,7 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 - ✅ 课程管理（学分、教师、目标分）
 - ✅ 深色主题（设置中切换，即时生效）
 - ⬜ 数据导出 / 导入（当前可复制 `data/coursework.db` 备份，JSON 导入待做）
-- ⬜ 开机自启
+- ✅ 开机自启（Windows 注册表启动项，设置内可开关，默认关闭）
 
 ### P2 · 扩展（不做，仅记录）
 
@@ -128,6 +128,8 @@ java -jar target/coursework-tracker-1.0.0.jar
 java -jar target/coursework-tracker-1.0.0.jar --seed-demo   # 仅生成示例数据（8 门课 / 20 条作业）
 java -jar target/coursework-tracker-1.0.0.jar --selftest    # 无界面自检：建库、算成绩、跑提醒
 java -jar target/coursework-tracker-1.0.0.jar --screenshot=docs/assets/main-light.png  # 渲染界面截图
+java -jar target/coursework-tracker-1.0.0.jar --minimized    # 启动后直接进托盘，不弹窗口
+java -jar target/coursework-tracker-1.0.0.jar --autostart=on # 开启开机自启（off / status 同理）
 ```
 
 首次启动若数据库为空，程序会询问是否生成示例数据；也可以在「文件 → 生成示例数据」中随时生成。
@@ -140,6 +142,54 @@ java -jar target/coursework-tracker-1.0.0.jar --screenshot=docs/assets/main-ligh
 | `logs/app.log` | 运行日志，单文件上限 5 MB |
 
 删除 `data/` 目录即恢复出厂状态；备份数据只需复制 `coursework.db`。
+
+
+---
+
+## 开机自启与资源占用
+
+### 实测占用
+
+Windows 11 / JDK 25 / 20 条示例作业、窗口静止：
+
+| 启动配置 | 物理内存 | 私有内存 | 线程数 | 空闲 CPU |
+| --- | --- | --- | --- | --- |
+| 默认 JVM | 182 MB | 226 MB | 40 | ~0% |
+| `-Xms32m -Xmx256m -XX:+UseSerialGC` | **135–140 MB** | **118–124 MB** | **27** | ~0% |
+| 调优参数 + `--minimized`（仅托盘） | **107 MB**（启动 10 秒时） | 104 MB | 28 | ~0% |
+
+- JVM 堆实际只用了约 20–45 MB；默认的 4 GB 是虚拟地址上限，不是真实占用
+- 启动到可交互约 1 秒；每秒刷新倒计时只做时间计算，不查数据库
+- 优化后约占 16 GB 机器的 0.9%，8 GB 机器约 1.7%
+
+### 开启 / 关闭
+
+在「设置 → 开机自启（登录后最小化到托盘）」勾选保存即可，不需要管理员权限（写入 `HKCU`）。
+
+也可以用命令行：
+
+```bash
+java -jar target/coursework-tracker-1.0.0.jar --autostart=on
+java -jar target/coursework-tracker-1.0.0.jar --autostart=status
+java -jar target/coursework-tracker-1.0.0.jar --autostart=off
+```
+
+写入的启动命令：
+
+```text
+javaw -Xms32m -Xmx256m -XX:+UseSerialGC -jar <项目路径>\target\coursework-tracker-1.0.0.jar --minimized
+```
+
+### 手动启动
+
+- `scripts/start.bat`：用 `javaw` + 低内存参数启动，无控制台窗口
+- `--minimized`：只进托盘，不弹主窗口，提醒仍然生效
+
+### 注意
+
+- 仅 Windows 支持，且需以打包后的 jar 运行；开发模式（`target/classes`）下开关自动禁用
+- 若担心拖慢登录，可改用任务计划程序设置 30 秒延迟，而不是直接写 Run 键
+- 关闭自启后会自动删除注册表项，可在 `--autostart=status` 中确认
 
 ---
 
@@ -169,10 +219,11 @@ Java课程设计_作业截止提醒与进度追踪器/
 ├── .github/                    # CI 流水线、Issue 与 PR 模板
 ├── .gitignore / .gitattributes / .editorconfig
 ├── docs/                       # 需求、方案、计划、测试、交付说明、截图
+├── scripts/start.bat           # javaw + 低内存参数启动
 ├── src/main/java/com/coursework/tracker/
 │   ├── App.java                # 入口：单实例、外观、托盘、主窗口、CLI 参数
 │   ├── SelfTest.java           # 无界面自检
-│   ├── core/                   # AppContext、AppPaths、ClockProvider、EventBus、单实例锁、日志
+│   ├── core/                   # AppContext、AppPaths、AutoStartManager、ClockProvider、EventBus、单实例锁、日志
 │   ├── model/                  # Assignment、Course、Countdown、Urgency、ReminderRule、CourseGrade …
 │   ├── dao/                    # Database、SchemaMigrator、CourseDao、AssignmentDao、ReminderLogDao、SettingDao
 │   ├── service/                # 作业/课程服务、提醒规划与调度、统计、成绩、设置、示例数据

@@ -1,6 +1,7 @@
 package com.coursework.tracker.ui.dialog;
 
 import com.coursework.tracker.core.AppContext;
+import com.coursework.tracker.core.AutoStartManager;
 import com.coursework.tracker.service.Settings;
 import com.coursework.tracker.ui.ThemeManager;
 
@@ -21,6 +22,7 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Window;
+import java.io.IOException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -35,6 +37,8 @@ public final class SettingsDialog extends JDialog {
 
     private final JCheckBox reminderCheck = new JCheckBox("开启定时提醒（T-24h / T-6h / T-1h / T-15min）");
     private final JCheckBox soundCheck = new JCheckBox("提醒时播放提示音");
+    private final JCheckBox autoStartCheck = new JCheckBox("开机自启（登录后最小化到托盘）");
+    private final boolean autoStartSupported = AutoStartManager.isSupported();
     private final JTextField quietStartField = new JTextField(5);
     private final JTextField quietEndField = new JTextField(5);
     private final JSpinner horizonSpinner = new JSpinner(new SpinnerNumberModel(168, 24, 720, 24));
@@ -68,6 +72,13 @@ public final class SettingsDialog extends JDialog {
 
         gbc.gridy++;
         form.add(soundCheck, gbc);
+
+        gbc.gridy++;
+        autoStartCheck.setEnabled(autoStartSupported);
+        autoStartCheck.setToolTipText(autoStartSupported
+                ? AutoStartManager.commandLine()
+                : "仅支持 Windows，且需以打包后的 jar 方式运行");
+        form.add(autoStartCheck, gbc);
 
         gbc.gridy++;
         gbc.gridwidth = 1;
@@ -119,6 +130,7 @@ public final class SettingsDialog extends JDialog {
         Settings settings = context.settings();
         reminderCheck.setSelected(settings.remindersEnabled());
         soundCheck.setSelected(settings.soundEnabled());
+        autoStartCheck.setSelected(autoStartSupported && AutoStartManager.isEnabled());
         quietStartField.setText(TIME.format(settings.quietStart()));
         quietEndField.setText(TIME.format(settings.quietEnd()));
         horizonSpinner.setValue((int) settings.horizonHours());
@@ -135,6 +147,17 @@ public final class SettingsDialog extends JDialog {
             settings.setHorizonHours(((Number) horizonSpinner.getValue()).doubleValue());
             context.settingDao().setBoolean("reminder.sound", soundCheck.isSelected());
 
+            if (autoStartSupported) {
+                boolean enabled = AutoStartManager.isEnabled();
+                if (autoStartCheck.isSelected() != enabled) {
+                    if (autoStartCheck.isSelected()) {
+                        AutoStartManager.enable();
+                    } else {
+                        AutoStartManager.disable();
+                    }
+                }
+            }
+
             String theme = themeCombo.getSelectedIndex() == 1 ? ThemeManager.DARK : ThemeManager.LIGHT;
             boolean themeChanged = !theme.equalsIgnoreCase(settings.theme());
             settings.setTheme(theme);
@@ -148,6 +171,8 @@ public final class SettingsDialog extends JDialog {
             dispose();
         } catch (DateTimeParseException e) {
             errorLabel.setText("静音时间格式应为 HH:mm，例如 23:00");
+        } catch (IOException e) {
+            errorLabel.setText("开机自启设置失败：" + e.getMessage());
         }
     }
 }

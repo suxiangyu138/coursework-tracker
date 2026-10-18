@@ -816,6 +816,13 @@ public final class MainFrame extends JFrame {
         requestFocus();
     }
 
+    /** 以 --minimized 启动时提示用户程序已在托盘运行。 */
+    public void notifyStartedInTray() {
+        if (tray != null) {
+            tray.notifyStarted();
+        }
+    }
+
     public void exitApplication() {
         try {
             secondTimer.stop();

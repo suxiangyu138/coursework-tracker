@@ -18,6 +18,10 @@
 ### 变更
 
 - GitHub / Gitee 双平台仓库简介与主页统一，互相链接
+- 开机自启：设置内开关 + `--autostart=on|off|status`，写入 HKCU Run 键，命令使用 `javaw -Xms32m -Xmx256m -XX:+UseSerialGC --minimized`
+- 新增 `--minimized` 启动参数：只进托盘、不弹主窗口，适合开机自启
+- 新增 `scripts/start.bat`：低内存参数一键启动
+- README 新增「开机自启与资源占用」实测数据（默认 182 MB → 优化后 135–140 MB）
 
 ---
 ## [1.0.0] · 2026-10-18
@@ -50,7 +54,7 @@
 
 ### 已知限制
 
-- 未实现数据导出/导入与开机自启（P1 剩余项），备份通过复制 `data/coursework.db`
+- 未实现数据导出/导入（P1 剩余项），备份通过复制 `data/coursework.db`
 - 图表仅柱状图，日历视图与多学期归档列为 P2
 
 ---
