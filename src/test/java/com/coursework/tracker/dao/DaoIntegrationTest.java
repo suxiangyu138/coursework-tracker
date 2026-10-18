@@ -46,7 +46,7 @@ class DaoIntegrationTest {
     }
 
     private Course createCourse(String name) {
-        Course draft = Course.draft(name, null, 3.0, null, 90.0, NOW);
+        Course draft = Course.draft(name, null, 3.0, null, "2026-2027-1", 90.0, NOW);
         return draft.withId(courseDao.insert(draft));
     }
 
@@ -64,7 +64,7 @@ class DaoIntegrationTest {
                 "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN "
                         + "('course','assignment','reminder_log','setting','ai_conversation','ai_message')");
         assertEquals(6, tables);
-        assertEquals("3", settingDao.get("schema.version", null));
+        assertEquals("4", settingDao.get("schema.version", null));
     }
 
     @Test
@@ -74,8 +74,11 @@ class DaoIntegrationTest {
         assertTrue(created.id() > 0);
         assertEquals("操作系统", courseDao.findById(created.id()).orElseThrow().name());
 
-        Course updated = created.withArchived(false);
+        Course updated = created.withArchived(false).withSemester("2025-2026-2");
         courseDao.update(updated);
+
+        Course reloaded = courseDao.findById(created.id()).orElseThrow();
+        assertEquals("2025-2026-2", reloaded.semester());
 
         assertTrue(courseDao.findByName("操作系统").isPresent());
         courseDao.delete(created.id());
@@ -86,7 +89,7 @@ class DaoIntegrationTest {
     @DisplayName("课程名唯一约束")
     void duplicateCourseName() {
         createCourse("数据库原理");
-        Course duplicate = Course.draft("数据库原理", null, 3.0, null, null, NOW);
+        Course duplicate = Course.draft("数据库原理", null, 3.0, null, "2026-2027-1", null, NOW);
         assertThrows(DataAccessException.class, () -> courseDao.insert(duplicate));
     }
 

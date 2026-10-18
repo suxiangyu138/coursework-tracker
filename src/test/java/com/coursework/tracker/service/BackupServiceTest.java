@@ -50,7 +50,7 @@ class BackupServiceTest {
         backup = new BackupService(database, courseDao, assignmentDao, settingDao,
                 temp.resolve("backup"));
 
-        Course course = Course.draft("数据库原理", null, 3.0, "张老师", 90.0, NOW);
+        Course course = Course.draft("数据库原理", null, 3.0, "张老师", "2026-2027-1", 90.0, NOW);
         long courseId = courseDao.insert(course);
         Assignment first = new Assignment(0L, courseId, "作业一", NOW.plusDays(1), 20, 120,
                 AssignmentStatus.TODO, null, null, null, NOW, NOW);
@@ -75,6 +75,7 @@ class BackupServiceTest {
         assertEquals(2, result.assignments());
         String json = Files.readString(file, StandardCharsets.UTF_8);
         assertTrue(json.contains("\"format\": \"coursework-tracker-backup\""));
+        assertTrue(json.contains("\"semester\": \"2026-2027-1\""));
         assertTrue(json.contains("数据库原理"));
         assertTrue(json.contains("作业二"));
     }
@@ -100,6 +101,7 @@ class BackupServiceTest {
             assertTrue(Files.exists(result.safetyBackup()));
 
             assertEquals(1, targetCourses.findAll(true).size());
+            assertEquals("2026-2027-1", targetCourses.findAll(true).get(0).semester());
             assertEquals(2, targetAssignments.findAll().size());
             Assignment imported = targetAssignments.findAll().stream()
                     .filter(a -> a.title().equals("作业二")).findFirst().orElseThrow();
@@ -115,7 +117,7 @@ class BackupServiceTest {
         Path file = temp.resolve("list.csv");
         backup.exportCsv(file);
         String csv = Files.readString(file, StandardCharsets.UTF_8);
-        assertTrue(csv.startsWith("\uFEFF课程,作业,截止时间"));
+        assertTrue(csv.startsWith("\uFEFF学期,课程,作业,截止时间"));
         assertTrue(csv.contains("数据库原理"));
         assertTrue(csv.contains("\"备注,含逗号\""));
     }

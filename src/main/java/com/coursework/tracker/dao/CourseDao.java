@@ -15,7 +15,7 @@ import java.util.Optional;
 public final class CourseDao {
 
     private static final String COLUMNS =
-            "id, name, code, credit, teacher, target_score, archived, created_at";
+            "id, name, code, credit, teacher, semester, target_score, archived, created_at";
 
     private final Database database;
 
@@ -69,20 +69,21 @@ public final class CourseDao {
 
     public long insert(Course course) {
         return database.transaction(connection -> {
-            String sql = "INSERT INTO course(name, code, credit, teacher, target_score, archived, created_at) "
-                    + "VALUES(?, ?, ?, ?, ?, ?, ?)";
+            String sql = "INSERT INTO course(name, code, credit, teacher, semester, target_score, archived, created_at) "
+                    + "VALUES(?, ?, ?, ?, ?, ?, ?, ?)";
             try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 ps.setString(1, course.name());
                 ps.setString(2, course.code());
                 ps.setDouble(3, course.credit());
                 ps.setString(4, course.teacher());
+                ps.setString(5, course.semester());
                 if (course.targetScore() == null) {
-                    ps.setObject(5, null);
+                    ps.setObject(6, null);
                 } else {
-                    ps.setDouble(5, course.targetScore());
+                    ps.setDouble(6, course.targetScore());
                 }
-                ps.setInt(6, course.archived() ? 1 : 0);
-                ps.setString(7, Formatters.db(course.createdAt()));
+                ps.setInt(7, course.archived() ? 1 : 0);
+                ps.setString(8, Formatters.db(course.createdAt()));
                 ps.executeUpdate();
                 try (ResultSet keys = ps.getGeneratedKeys()) {
                     if (keys.next()) {
@@ -96,20 +97,21 @@ public final class CourseDao {
 
     public void update(Course course) {
         int changed = database.transaction(connection -> {
-            String sql = "UPDATE course SET name = ?, code = ?, credit = ?, teacher = ?, "
+            String sql = "UPDATE course SET name = ?, code = ?, credit = ?, teacher = ?, semester = ?, "
                     + "target_score = ?, archived = ? WHERE id = ?";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
                 ps.setString(1, course.name());
                 ps.setString(2, course.code());
                 ps.setDouble(3, course.credit());
                 ps.setString(4, course.teacher());
+                ps.setString(5, course.semester());
                 if (course.targetScore() == null) {
-                    ps.setObject(5, null);
+                    ps.setObject(6, null);
                 } else {
-                    ps.setDouble(5, course.targetScore());
+                    ps.setDouble(6, course.targetScore());
                 }
-                ps.setInt(6, course.archived() ? 1 : 0);
-                ps.setLong(7, course.id());
+                ps.setInt(7, course.archived() ? 1 : 0);
+                ps.setLong(8, course.id());
                 return ps.executeUpdate();
             }
         });
@@ -160,6 +162,7 @@ public final class CourseDao {
                 rs.getString("code"),
                 rs.getDouble("credit"),
                 rs.getString("teacher"),
+                rs.getString("semester"),
                 SqlTypes.nullableDouble(rs, "target_score"),
                 rs.getInt("archived") != 0,
                 SqlTypes.dateTime(rs, "created_at"));

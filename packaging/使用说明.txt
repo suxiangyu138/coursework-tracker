@@ -1,5 +1,5 @@
 作业哨兵 · CourseWorkTracker
-版本 1.1.0
+版本 1.2.0
 作者：苏巷雨（suxiangyu）
 邮箱：suxiangyu_dev@foxmail.com
 GitHub：https://github.com/suxiangyu138/coursework-tracker
@@ -22,12 +22,19 @@ Gitee：https://gitee.com/suxiangyu138/coursework-tracker
 - 旧版程序保留为 update-backup.jar
 - 只替换 jar，data/ 不动，更新后自动重启
 
-四、AI 助手（可选）
-「设置 → AI 助手」填写 DeepSeek API Key 并保存。
-DeepSeek 当前可用模型：deepseek-flash（默认）、deepseek-v4-pro。
-未启用 AI 时程序不发起任何网络请求。
+四、课程与学期
+- 左侧课程列表按学期分组；点击学期标题筛选该学期作业，点击课程筛选单门课。
+- 底部「新建课程 / 编辑 / 删除」管理课程；右键菜单、双击、F2、Delete 也可操作。
+- 删除课程前会自动备份数据库，并级联删除该课程下的作业与提醒记录。
+- 老版本升级时按课程创建时间自动推断学期，可在课程对话框里修改。
 
-五、隐私
+五、AI 助手（可选）
+- 主界面右侧常驻 AI 面板：自动分析逾期、今日/7 天截止、剩余工作量和最高优先级任务。
+- 可以直接输入问题，或点「今日计划」「本周风险」让 AI 给出具体时间表和风险建议。
+- 「设置 → AI 助手」填写 DeepSeek API Key 并保存；未启用 AI 时本地分析仍可用，且程序不发起任何网络请求。
+- DeepSeek 当前可用模型：deepseek-flash（默认）、deepseek-v4-pro。
+
+六、隐私
 数据保存在本机；启用 AI 后，对话内容与工具参数会发送到你配置的 DeepSeek 接口。
 不要把 data/ 目录发给别人（其中包含 API Key）。
 

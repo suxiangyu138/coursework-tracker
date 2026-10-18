@@ -39,7 +39,7 @@ public final class SettingsDialog extends JDialog {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
 
     private final AppContext context;
-    private final Runnable onThemeChanged;
+    private final Runnable onSaved;
 
     private final JCheckBox reminderCheck = new JCheckBox("开启定时提醒（T-24h / T-6h / T-1h / T-15min）");
     private final JCheckBox soundCheck = new JCheckBox("提醒时播放提示音");
@@ -58,10 +58,10 @@ public final class SettingsDialog extends JDialog {
     private final JButton aiTestButton = new JButton("测试连接");
     private final JLabel aiStatusLabel = new JLabel(" ");
 
-    private SettingsDialog(Window owner, AppContext context, Runnable onThemeChanged) {
+    private SettingsDialog(Window owner, AppContext context, Runnable onSaved) {
         super(owner, "设置", ModalityType.APPLICATION_MODAL);
         this.context = context;
-        this.onThemeChanged = onThemeChanged;
+        this.onSaved = onSaved;
         buildUi();
         loadValues();
         pack();
@@ -69,8 +69,8 @@ public final class SettingsDialog extends JDialog {
         AppIcon.applyTo(this);
     }
 
-    public static void show(Window owner, AppContext context, Runnable onThemeChanged) {
-        new SettingsDialog(owner, context, onThemeChanged).setVisible(true);
+    public static void show(Window owner, AppContext context, Runnable onSaved) {
+        new SettingsDialog(owner, context, onSaved).setVisible(true);
     }
 
     private void buildUi() {
@@ -240,9 +240,9 @@ public final class SettingsDialog extends JDialog {
             if (themeChanged) {
                 ThemeManager.install(theme);
                 ThemeManager.applyTo(getOwner());
-                if (onThemeChanged != null) {
-                    onThemeChanged.run();
-                }
+            }
+            if (onSaved != null) {
+                onSaved.run();
             }
             dispose();
         } catch (DateTimeParseException e) {

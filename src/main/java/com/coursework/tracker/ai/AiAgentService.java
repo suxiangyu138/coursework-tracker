@@ -15,8 +15,8 @@ import java.util.List;
  */
 public final class AiAgentService {
 
-    private static final int MAX_ROUNDS = 4;
-    private static final int CONTEXT_MESSAGES = 40;
+    private static final int MAX_ROUNDS = 6;
+    private static final int CONTEXT_MESSAGES = 60;
 
     private final DeepSeekClient client;
     private final AiActionExecutor executor;

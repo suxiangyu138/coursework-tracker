@@ -3,6 +3,7 @@ package com.coursework.tracker.service;
 import com.coursework.tracker.model.Assignment;
 import com.coursework.tracker.model.AssignmentStatus;
 import com.coursework.tracker.model.Course;
+import com.coursework.tracker.model.Semester;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -28,15 +29,16 @@ public final class DemoDataFactory {
         for (Course course : courseService.list()) {
             courses.put(course.name(), course);
         }
+        String semester = Semester.current(now).code();
 
-        Course os = course(courses, "操作系统", 3.0, 90.0);
-        Course db = course(courses, "数据库原理", 3.0, 90.0);
-        Course network = course(courses, "计算机网络", 3.0, 85.0);
-        Course math = course(courses, "概率论与数理统计", 2.0, null);
-        Course politics = course(courses, "马克思主义基本原理", 2.0, null);
-        Course english = course(courses, "大学英语", 2.0, null);
-        Course ds = course(courses, "数据结构", 3.0, null);
-        Course se = course(courses, "软件工程", 2.0, null);
+        Course os = course(courses, "操作系统", 3.0, 90.0, semester);
+        Course db = course(courses, "数据库原理", 3.0, 90.0, semester);
+        Course network = course(courses, "计算机网络", 3.0, 85.0, semester);
+        Course math = course(courses, "概率论与数理统计", 2.0, null, semester);
+        Course politics = course(courses, "马克思主义基本原理", 2.0, null, semester);
+        Course english = course(courses, "大学英语", 2.0, null, semester);
+        Course ds = course(courses, "数据结构", 3.0, null, semester);
+        Course se = course(courses, "软件工程", 2.0, null, semester);
 
         int count = 0;
 
@@ -94,12 +96,13 @@ public final class DemoDataFactory {
         return count;
     }
 
-    private Course course(Map<String, Course> existing, String name, double credit, Double target) {
+    private Course course(Map<String, Course> existing, String name, double credit, Double target,
+                          String semester) {
         Course course = existing.get(name);
         if (course != null) {
             return course;
         }
-        course = courseService.create(name, null, credit, null, target);
+        course = courseService.create(name, null, credit, null, semester, target);
         existing.put(name, course);
         return course;
     }

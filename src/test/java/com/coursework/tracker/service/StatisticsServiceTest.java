@@ -22,7 +22,7 @@ class StatisticsServiceTest {
     private final StatisticsService service = new StatisticsService();
 
     private static Course course(long id, String name) {
-        return new Course(id, name, null, 3.0, null, null, false, NOW);
+        return new Course(id, name, null, 3.0, null, null, null, false, NOW);
     }
 
     private static Assignment assignment(long id, long courseId, LocalDateTime dueAt,

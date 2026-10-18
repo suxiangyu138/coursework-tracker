@@ -1,5 +1,8 @@
 package com.coursework.tracker.dao;
 
+import com.coursework.tracker.model.Semester;
+import com.coursework.tracker.util.Formatters;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -8,18 +11,19 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
 /**
- * 建表与版本迁移。当前版本 v1；后续结构变更以追加迁移的方式实现，
+ * 建表与版本迁移。当前版本 v4；后续结构变更以追加迁移的方式实现，
  * 保证老用户的数据库可以平滑升级。
  */
 public final class SchemaMigrator {
 
     private static final Logger LOG = Logger.getLogger(SchemaMigrator.class.getName());
-    private static final int CURRENT_VERSION = 3;
+    private static final int CURRENT_VERSION = 4;
 
     private SchemaMigrator() {
     }
@@ -35,6 +39,9 @@ public final class SchemaMigrator {
                     }
                 }
                 version = CURRENT_VERSION;
+                // 兼容"有表但没有版本号"的异常库：schema.sql 的 CREATE TABLE IF NOT EXISTS
+                // 不会给已存在的表补列，这里兜底检查一次。
+                ensureSemesterColumn(connection);
                 LOG.info("已创建数据库结构 v" + version);
             } else {
                 if (version < 2) {
@@ -47,9 +54,13 @@ public final class SchemaMigrator {
                     version = 3;
                     LOG.info("数据库已升级到 v3（新增 AI 对话表）");
                 }
+                if (version < 4) {
+                    migrateToV4(connection);
+                    version = 4;
+                }
             }
             seedDefaults(connection);
-            writeVersion(connection, CURRENT_VERSION);
+            writeVersion(connection, Math.max(version, CURRENT_VERSION));
             return null;
         });
     }
@@ -104,6 +115,96 @@ public final class SchemaMigrator {
                 st.execute(statement);
             }
         }
+    }
+
+    /**
+     * v4：课程增加学期。只加列、不改动原有字段；老课程按创建时间推断学期
+     * （8 月–次年 1 月为秋季学期，2–7 月为春季学期），随后可在界面里修改。
+     * 这是纯增量迁移，不会删除任何课程、作业或提醒记录。
+     */
+    private static void migrateToV4(Connection connection) throws SQLException {
+        if (!tableExists(connection, "course")) {
+            LOG.warning("数据库中没有 course 表，跳过 v4 学期迁移");
+            return;
+        }
+        ensureSemesterColumn(connection);
+        int inferred = inferSemesters(connection);
+        try (Statement st = connection.createStatement()) {
+            st.execute("CREATE INDEX IF NOT EXISTS idx_course_semester ON course(semester)");
+        }
+        LOG.info("数据库已升级到 v4（课程支持学期，自动推断 " + inferred + " 门课程）");
+    }
+
+    /** 幂等地补 semester 列（老库升级或异常库兜底）。 */
+    private static void ensureSemesterColumn(Connection connection) throws SQLException {
+        if (!tableExists(connection, "course") || hasColumn(connection, "course", "semester")) {
+            return;
+        }
+        try (Statement st = connection.createStatement()) {
+            st.execute("ALTER TABLE course ADD COLUMN semester TEXT");
+        }
+        LOG.info("course 表已增加 semester 列");
+    }
+
+    /**
+     * 老课程没有学期信息，用创建时间推断一个合理默认值。
+     * 只处理 semester 为空的行，已有值（包括用户手动设置）绝不覆盖。
+     */
+    private static int inferSemesters(Connection connection) throws SQLException {
+        List<CourseCreated> pending = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT id, created_at FROM course WHERE semester IS NULL OR trim(semester) = ''");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                try {
+                    LocalDateTime createdAt = Formatters.parseDb(rs.getString("created_at"));
+                    if (createdAt != null) {
+                        pending.add(new CourseCreated(rs.getLong("id"), createdAt));
+                    }
+                } catch (IllegalArgumentException ignored) {
+                    // 时间格式异常时保持"未分学期"，不阻断升级
+                }
+            }
+        }
+        if (pending.isEmpty()) {
+            return 0;
+        }
+        try (PreparedStatement ps = connection.prepareStatement(
+                "UPDATE course SET semester = ? WHERE id = ?")) {
+            for (CourseCreated course : pending) {
+                ps.setString(1, Semester.current(course.createdAt()).code());
+                ps.setLong(2, course.id());
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+        return pending.size();
+    }
+
+    private static boolean tableExists(Connection connection, String table) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")) {
+            ps.setString(1, table);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private static boolean hasColumn(Connection connection, String table, String column)
+            throws SQLException {
+        try (Statement st = connection.createStatement();
+             ResultSet rs = st.executeQuery("PRAGMA table_info(" + table + ")")) {
+            while (rs.next()) {
+                if (column.equalsIgnoreCase(rs.getString("name"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private record CourseCreated(long id, LocalDateTime createdAt) {
     }
 
     private static void createSettingTable(Connection connection) throws SQLException {

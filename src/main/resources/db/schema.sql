@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS course (
     code         TEXT,
     credit       REAL    NOT NULL DEFAULT 0 CHECK (credit >= 0 AND credit <= 20),
     teacher      TEXT,
+    semester     TEXT,
     target_score REAL             CHECK (target_score IS NULL OR (target_score > 0 AND target_score <= 100)),
     archived     INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
     created_at   TEXT    NOT NULL
@@ -46,6 +47,7 @@ CREATE TABLE IF NOT EXISTS setting (
 CREATE INDEX IF NOT EXISTS idx_assignment_due    ON assignment(due_at);
 CREATE INDEX IF NOT EXISTS idx_assignment_course ON assignment(course_id);
 CREATE INDEX IF NOT EXISTS idx_assignment_status ON assignment(status);
+CREATE INDEX IF NOT EXISTS idx_course_semester   ON course(semester);
 CREATE INDEX IF NOT EXISTS idx_reminder_fired    ON reminder_log(fired_at);
 
 CREATE TABLE IF NOT EXISTS ai_conversation (

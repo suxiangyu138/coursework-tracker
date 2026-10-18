@@ -22,6 +22,8 @@ import com.coursework.tracker.ui.dialog.GradeDetailDialog;
 import com.coursework.tracker.ui.dialog.ReminderCenterDialog;
 import com.coursework.tracker.ui.dialog.SettingsDialog;
 import com.coursework.tracker.ui.dialog.UpdateDialog;
+import com.coursework.tracker.ui.panel.AiAssistantPanel;
+import com.coursework.tracker.ui.panel.CourseFilter;
 import com.coursework.tracker.ui.panel.CourseListPanel;
 import com.coursework.tracker.ui.panel.DashboardPanel;
 import com.coursework.tracker.ui.table.AssignmentTableModel;
@@ -49,6 +51,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
@@ -91,7 +94,6 @@ import java.util.logging.Logger;
 public final class MainFrame extends JFrame {
 
     private static final Logger LOG = Logger.getLogger(MainFrame.class.getName());
-    private static final String VERSION = "1.0.0";
 
     /** 排序维度。 */
     public enum SortMode {
@@ -118,6 +120,7 @@ public final class MainFrame extends JFrame {
     private final TableRowSorter<AssignmentTableModel> sorter = new TableRowSorter<>(tableModel);
     private final CourseListPanel coursePanel = new CourseListPanel();
     private final DashboardPanel dashboard;
+    private final AiAssistantPanel aiPanel;
 
     private final JComboBox<SortMode> sortCombo = new JComboBox<>(SortMode.values());
     private final JTextField searchField = new JTextField(14);
@@ -127,16 +130,20 @@ public final class MainFrame extends JFrame {
 
     private TrayController tray;
     private JPanel statusBar;
-    private Long selectedCourseId;
+    private JToggleButton aiToggle;
+    private CourseFilter courseFilter = CourseFilter.all();
     private List<Course> courses = List.of();
     private List<Assignment> assignments = List.of();
     private Map<Long, String> courseNames = new HashMap<>();
+    private Map<Long, Course> courseById = new HashMap<>();
     private int tickCount;
 
     public MainFrame(AppContext context) {
         super("作业哨兵 · CourseWorkTracker");
         this.context = context;
         this.dashboard = new DashboardPanel(context);
+        this.aiPanel = new AiAssistantPanel(this, context,
+                () -> setAiPanelVisible(false), this::openSettings);
         AppIcon.applyTo(this);
         this.table = new JTable(tableModel) {
             @Override
@@ -166,8 +173,10 @@ public final class MainFrame extends JFrame {
                 onCloseRequested();
             }
         });
-        setSize(1180, 790);
-        setMinimumSize(new Dimension(960, 620));
+        Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+        setSize(Math.min(1320, Math.max(1080, screen.width - 60)),
+                Math.min(840, Math.max(660, screen.height - 80)));
+        setMinimumSize(new Dimension(1080, 660));
         setLocationRelativeTo(null);
     }
 
@@ -213,10 +222,15 @@ public final class MainFrame extends JFrame {
 
         JSplitPane horizontal = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, coursePanel, right);
         horizontal.setResizeWeight(0);
-        horizontal.setDividerLocation(245);
+        horizontal.setDividerLocation(265);
         horizontal.setBorder(null);
         horizontal.setOpaque(false);
-        root.add(horizontal, BorderLayout.CENTER);
+
+        JPanel workspace = new JPanel(new BorderLayout(8, 0));
+        workspace.setOpaque(false);
+        workspace.add(horizontal, BorderLayout.CENTER);
+        workspace.add(aiPanel, BorderLayout.EAST);
+        root.add(workspace, BorderLayout.CENTER);
 
         add(root, BorderLayout.CENTER);
         add(buildStatusBar(), BorderLayout.SOUTH);
@@ -229,6 +243,8 @@ public final class MainFrame extends JFrame {
         JMenu file = new JMenu("文件");
         file.add(menuItem("新建作业", "control N", e -> newAssignment()));
         file.add(menuItem("新建课程", null, e -> newCourse()));
+        file.add(menuItem("编辑当前课程…", null, e -> editSelectedCourse()));
+        file.add(menuItem("删除当前课程…", null, e -> deleteSelectedCourse()));
         file.addSeparator();
         file.add(menuItem("导出 JSON 备份…", null, e -> exportJsonBackup()));
         file.add(menuItem("导出 CSV 作业清单…", null, e -> exportCsv()));
@@ -263,7 +279,8 @@ public final class MainFrame extends JFrame {
         bar.add(reminder);
 
         JMenu ai = new JMenu("AI");
-        ai.add(menuItem("AI 助手…", "control shift A", e -> AiChatDialog.show(this, context)));
+        ai.add(menuItem("显示/隐藏 AI 面板", null, e -> setAiPanelVisible(!aiPanel.isVisible())));
+        ai.add(menuItem("完整对话…", "control shift A", e -> AiChatDialog.show(this, context)));
         ai.add(menuItem("AI 设置…", null, e -> openSettings()));
         bar.add(ai);
 
@@ -292,6 +309,11 @@ public final class MainFrame extends JFrame {
         create.setFont(create.getFont().deriveFont(Font.BOLD));
         create.addActionListener(e -> newAssignment());
         toolbar.add(create);
+
+        JButton deleteAssignment = new JButton("删除作业");
+        deleteAssignment.setToolTipText("删除表格中选中的作业（也可以按 Delete 键或右键菜单）");
+        deleteAssignment.addActionListener(e -> deleteSelected());
+        toolbar.add(deleteAssignment);
 
         JButton refresh = new JButton("刷新");
         refresh.addActionListener(e -> refreshAll());
@@ -327,13 +349,23 @@ public final class MainFrame extends JFrame {
         toolbar.add(searchField);
 
         toolbar.add(javax.swing.Box.createHorizontalGlue());
-        JButton aiButton = new JButton("AI 助手");
-        aiButton.addActionListener(e -> AiChatDialog.show(this, context));
-        toolbar.add(aiButton);
+        aiToggle = new JToggleButton("AI 面板", true);
+        aiToggle.setToolTipText("显示/隐藏右侧 AI 助手；它会自动分析当前任务并给出建议");
+        aiToggle.addActionListener(e -> setAiPanelVisible(aiToggle.isSelected()));
+        toolbar.add(aiToggle);
         JButton settings = new JButton("设置");
         settings.addActionListener(e -> openSettings());
         toolbar.add(settings);
         return toolbar;
+    }
+
+    private void setAiPanelVisible(boolean visible) {
+        aiPanel.setVisible(visible);
+        if (aiToggle != null) {
+            aiToggle.setSelected(visible);
+        }
+        revalidate();
+        repaint();
     }
 
     private JPanel buildStatusBar() {
@@ -500,13 +532,14 @@ public final class MainFrame extends JFrame {
     private void bindEvents() {
         context.eventBus().subscribe(AppEvents.AssignmentChanged.class, event -> refreshAll());
         context.eventBus().subscribe(AppEvents.CourseChanged.class, event -> refreshAll());
-        coursePanel.setOnSelect(id -> {
-            selectedCourseId = id;
+        coursePanel.setOnSelect(filter -> {
+            courseFilter = filter;
             sortAgain();
-            CompletionStats stats = context.statisticsService().compute(courses, assignments);
-            coursePanel.setCourses(courses, stats, selectedCourseId);
             SwingUtilities.invokeLater(this::scrollTableToTop);
         });
+        coursePanel.setOnCreate(this::newCourse);
+        coursePanel.setOnEdit(this::editCourse);
+        coursePanel.setOnDelete(this::deleteCourse);
     }
 
     /** 让表格回到第一行（首次显示、切换筛选后）。 */
@@ -521,16 +554,24 @@ public final class MainFrame extends JFrame {
             courses = context.courseService().list();
             assignments = context.assignmentService().listAll();
             courseNames = new HashMap<>();
+            courseById = new HashMap<>();
             for (Course course : courses) {
                 courseNames.put(course.id(), course.name());
+                courseById.put(course.id(), course);
             }
 
             tableModel.setScoring(context.settings().horizonHours(), context.settings().weights());
             tableModel.setData(assignments, courseNames);
 
             CompletionStats stats = context.statisticsService().compute(courses, assignments);
-            coursePanel.setCourses(courses, stats, selectedCourseId);
+            courseFilter = coursePanel.setCourses(courses, stats, courseFilter);
             dashboard.refresh(courses, assignments);
+            try {
+                aiPanel.refresh(courses, assignments);
+            } catch (RuntimeException e) {
+                // AI 面板只是辅助信息，不能因为它的渲染问题影响主表格刷新
+                LOG.log(Level.WARNING, "AI 面板刷新失败", e);
+            }
             updateStatus(stats);
             sortAgain();
             LOG.fine(() -> "刷新完成：作业=" + assignments.size()
@@ -573,7 +614,8 @@ public final class MainFrame extends JFrame {
     }
 
     private boolean matches(Assignment assignment) {
-        if (selectedCourseId != null && assignment.courseId() != selectedCourseId) {
+        Course course = courseById.get(assignment.courseId());
+        if (course == null || !courseFilter.matches(course)) {
             return false;
         }
         String query = searchField.getText().trim().toLowerCase(Locale.ROOT);
@@ -581,8 +623,8 @@ public final class MainFrame extends JFrame {
             return true;
         }
         String title = assignment.title().toLowerCase(Locale.ROOT);
-        String course = courseNames.getOrDefault(assignment.courseId(), "").toLowerCase(Locale.ROOT);
-        return title.contains(query) || course.contains(query);
+        String courseName = courseNames.getOrDefault(assignment.courseId(), "").toLowerCase(Locale.ROOT);
+        return title.contains(query) || courseName.contains(query);
     }
 
     private void onSecondTick() {
@@ -640,8 +682,72 @@ public final class MainFrame extends JFrame {
     private void newCourse() {
         Course created = CourseDialog.showDialog(this, context, null);
         if (created != null) {
-            selectedCourseId = created.id();
+            courseFilter = CourseFilter.singleCourse(created.id());
             refreshAll();
+            showToast("已新建课程：" + created.name() + "（" + created.semesterLabel() + "）");
+        }
+    }
+
+    private void editSelectedCourse() {
+        Long id = coursePanel.selectedCourseId();
+        if (id == null) {
+            showToast("请先在左侧选择一门课程");
+            return;
+        }
+        editCourse(id);
+    }
+
+    private void deleteSelectedCourse() {
+        Long id = coursePanel.selectedCourseId();
+        if (id == null) {
+            showToast("请先在左侧选择一门课程");
+            return;
+        }
+        deleteCourse(id);
+    }
+
+    private void editCourse(long id) {
+        Course course = courseById.get(id);
+        if (course == null) {
+            return;
+        }
+        Course updated = CourseDialog.showDialog(this, context, course);
+        if (updated != null) {
+            showToast("已更新课程：" + updated.name() + "（" + updated.semesterLabel() + "）");
+        }
+    }
+
+    /**
+     * 删除课程。删除前先做一次 SQLite 在线快照，避免误删后无法恢复；
+     * 备份失败时中止删除，宁可不删也不冒险。
+     */
+    private void deleteCourse(long id) {
+        Course course = courseById.get(id);
+        if (course == null) {
+            return;
+        }
+        long count = context.courseService().assignmentCount(id);
+        String detail = count == 0
+                ? "该课程下没有作业。"
+                : "该课程下的 " + count + " 条作业及其提醒记录会一并删除，且无法撤销。";
+        int choice = JOptionPane.showConfirmDialog(this,
+                "确定删除课程「" + course.name() + "」？\n\n" + detail
+                        + "\n\n删除前会自动备份数据库到 data/backup。",
+                "删除课程", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (choice != JOptionPane.YES_OPTION) {
+            return;
+        }
+        try {
+            Path backup = context.backupService().backupNow();
+            LOG.info("删除课程前备份: " + backup);
+            if (courseFilter instanceof CourseFilter.SingleCourse single
+                    && single.courseId() == id) {
+                courseFilter = CourseFilter.all();
+            }
+            context.courseService().delete(id);
+            showToast("已删除课程：" + course.name() + "（删除前已备份）");
+        } catch (RuntimeException e) {
+            showBackupError("删除课程失败", e);
         }
     }
 
@@ -666,9 +772,11 @@ public final class MainFrame extends JFrame {
 
     private void deleteSelected() {
         Assignment assignment = selectedAssignment();
-        if (assignment != null) {
-            deleteAssignment(assignment);
+        if (assignment == null) {
+            showToast("请先在表格中选择一条作业");
+            return;
         }
+        deleteAssignment(assignment);
     }
 
     private void deleteAssignment(Assignment assignment) {
@@ -708,12 +816,14 @@ public final class MainFrame extends JFrame {
     }
 
     private void openSettings() {
-        SettingsDialog.show(this, context, this::onThemeChanged);
+        SettingsDialog.show(this, context, this::onSettingsSaved);
     }
 
-    private void onThemeChanged() {
+    private void onSettingsSaved() {
         ThemeManager.applyTo(this);
         dashboard.applyTheme();
+        aiPanel.applyTheme();
+        aiPanel.refreshStatus();
         if (statusBar != null) {
             statusBar.setBackground(UIManager.getColor("Panel.background"));
         }
@@ -728,7 +838,7 @@ public final class MainFrame extends JFrame {
             return;
         }
         Course selected = courses.stream()
-                .filter(c -> selectedCourseId != null && c.id() == selectedCourseId)
+                .filter(courseFilter::matches)
                 .findFirst()
                 .orElse(courses.get(0));
         Course choice = (Course) JOptionPane.showInputDialog(this, "选择要查看的课程：", "成绩预估",
@@ -822,7 +932,7 @@ public final class MainFrame extends JFrame {
         }
         try {
             var result = context.backupService().importJson(file);
-            selectedCourseId = null;
+            courseFilter = CourseFilter.all();
             refreshAll();
             JOptionPane.showMessageDialog(this,
                     "导入完成：" + result.courses() + " 门课程、" + result.assignments() + " 条作业。\n\n"

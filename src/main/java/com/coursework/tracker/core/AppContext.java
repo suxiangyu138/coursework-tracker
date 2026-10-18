@@ -71,7 +71,7 @@ public final class AppContext implements AutoCloseable {
         this.backupService = new BackupService(database, courseDao, assignmentDao, settingDao, backupDir);
         this.aiChatDao = new AiChatDao(database);
         this.aiAgentService = new AiAgentService(new DeepSeekClient(),
-                new AiActionExecutor(courseService, assignmentService), aiChatDao);
+                new AiActionExecutor(courseService, assignmentService, backupService), aiChatDao);
     }
 
     public static AppContext open(Path databaseFile) {

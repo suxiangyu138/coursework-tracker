@@ -3,12 +3,33 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Push-Location $root
+
+# 用 .NET 手工写 zip，确保条目使用正斜杠（/），Windows 资源管理器与跨平台解压都正常。
+# 不直接用 Compress-Archive：部分 PowerShell 版本会把路径分隔符写成反斜杠。
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+function New-StandardZip([string]$sourceDir, [string]$destination, [string]$baseName) {
+    $sourceDir = (Resolve-Path -LiteralPath $sourceDir).Path.TrimEnd('\')
+    if (Test-Path -LiteralPath $destination) { Remove-Item -LiteralPath $destination -Force }
+    $zip = [System.IO.Compression.ZipFile]::Open($destination, [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        Get-ChildItem -LiteralPath $sourceDir -Recurse -File | ForEach-Object {
+            $relative = $_.FullName.Substring($sourceDir.Length + 1).Replace('\', '/')
+            $entryName = if ([string]::IsNullOrEmpty($baseName)) { $relative } else { "$baseName/$relative" }
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $zip, $_.FullName, $entryName, [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
+        }
+    } finally {
+        $zip.Dispose()
+    }
+}
+
 try {
     [xml]$pom = Get-Content 'pom.xml'
     $version = $pom.project.version
     $name = 'CourseWorkTracker'
     $inputDir = 'target\jpackage-input'
-    $destDir = 'target\jpackage'
+    $destDir = "target\jpackage-$version"
     $appDir = Join-Path $destDir $name
 
     if (-not (Get-Command jpackage -ErrorAction SilentlyContinue)) {
@@ -17,7 +38,8 @@ try {
 
     mvn -B -q -DskipTests package
 
-    Remove-Item $inputDir, $destDir -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item $inputDir -Recurse -Force -ErrorAction SilentlyContinue
+    if (Test-Path $destDir) { Remove-Item $destDir -Recurse -Force }
     New-Item -ItemType Directory -Force $inputDir | Out-Null
     Copy-Item 'dist\coursework-tracker.jar' (Join-Path $inputDir 'coursework-tracker.jar')
 
@@ -42,8 +64,7 @@ try {
 
     New-Item -ItemType Directory -Force 'release' | Out-Null
     $zip = "release\$name-$version-windows-x64.zip"
-    Remove-Item $zip -Force -ErrorAction SilentlyContinue
-    Compress-Archive -Path $appDir -DestinationPath $zip -Force
+    New-StandardZip -sourceDir $appDir -destination $zip -baseName $name
     Write-Host "生成: $zip"
     Write-Host "解压后双击: $name\$name.exe"
 } finally {

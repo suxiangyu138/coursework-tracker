@@ -8,7 +8,7 @@ public final class AppInfo {
 
     public static final String NAME = "作业哨兵";
     public static final String ENGLISH_NAME = "CourseWorkTracker";
-    public static final String VERSION = "1.1.0";
+    public static final String VERSION = "1.2.0";
 
     public static final String AUTHOR = "苏巷雨";
     public static final String AUTHOR_ALIAS = "suxiangyu";

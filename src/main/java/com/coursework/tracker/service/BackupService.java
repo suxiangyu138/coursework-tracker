@@ -7,6 +7,7 @@ import com.coursework.tracker.dao.SettingDao;
 import com.coursework.tracker.model.Assignment;
 import com.coursework.tracker.model.AssignmentStatus;
 import com.coursework.tracker.model.Course;
+import com.coursework.tracker.model.Semester;
 import com.coursework.tracker.util.Formatters;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -35,7 +36,7 @@ public final class BackupService {
 
     private static final Logger LOG = Logger.getLogger(BackupService.class.getName());
     private static final String FORMAT = "coursework-tracker-backup";
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
     private static final int AUTO_BACKUP_KEEP = 7;
     private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
@@ -76,7 +77,7 @@ public final class BackupService {
         List<CourseDto> courseDtos = new ArrayList<>();
         for (Course course : courses) {
             courseDtos.add(new CourseDto(course.name(), course.code(), course.credit(),
-                    course.teacher(), course.targetScore(), course.archived(),
+                    course.teacher(), course.semester(), course.targetScore(), course.archived(),
                     Formatters.db(course.createdAt())));
         }
         List<AssignmentDto> assignmentDtos = new ArrayList<>();
@@ -99,14 +100,17 @@ public final class BackupService {
         List<Course> courses = courseDao.findAll(true);
         List<Assignment> assignments = assignmentDao.findAll();
         Map<Long, String> courseNames = new HashMap<>();
+        Map<Long, String> courseSemesters = new HashMap<>();
         for (Course course : courses) {
             courseNames.put(course.id(), course.name());
+            courseSemesters.put(course.id(), Semester.display(course.semester()));
         }
 
         StringBuilder csv = new StringBuilder("\uFEFF");
-        csv.append("课程,作业,截止时间,权重(%),预计耗时(分钟),状态,得分,备注\r\n");
+        csv.append("学期,课程,作业,截止时间,权重(%),预计耗时(分钟),状态,得分,备注\r\n");
         for (Assignment assignment : assignments) {
-            csv.append(csv(courseNames.getOrDefault(assignment.courseId(), ""))).append(',')
+            csv.append(csv(courseSemesters.getOrDefault(assignment.courseId(), Semester.UNASSIGNED_LABEL))).append(',')
+                    .append(csv(courseNames.getOrDefault(assignment.courseId(), ""))).append(',')
                     .append(csv(assignment.title())).append(',')
                     .append(csv(Formatters.display(assignment.dueAt()))).append(',')
                     .append(assignment.weight()).append(',')
@@ -166,6 +170,7 @@ public final class BackupService {
                 throw new IOException("备份中存在重名课程：" + name);
             }
             Course course = new Course(0L, name, dto.code(), dto.credit(), dto.teacher(),
+                    Semester.parse(dto.semester()).map(Semester::code).orElse(dto.semester()),
                     dto.targetScore(), dto.archived(),
                     parseTime(dto.createdAt(), LocalDateTime.now()));
             courses.add(course);
@@ -235,20 +240,21 @@ public final class BackupService {
 
     private long insertCourse(java.sql.Connection connection, Course course) throws java.sql.SQLException {
         try (var ps = connection.prepareStatement(
-                "INSERT INTO course(name, code, credit, teacher, target_score, archived, created_at) "
-                        + "VALUES(?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO course(name, code, credit, teacher, semester, target_score, archived, created_at) "
+                        + "VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
                 java.sql.Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, course.name());
             ps.setString(2, course.code());
             ps.setDouble(3, course.credit());
             ps.setString(4, course.teacher());
+            ps.setString(5, course.semester());
             if (course.targetScore() == null) {
-                ps.setObject(5, null);
+                ps.setObject(6, null);
             } else {
-                ps.setDouble(5, course.targetScore());
+                ps.setDouble(6, course.targetScore());
             }
-            ps.setInt(6, course.archived() ? 1 : 0);
-            ps.setString(7, Formatters.db(course.createdAt()));
+            ps.setInt(7, course.archived() ? 1 : 0);
+            ps.setString(8, Formatters.db(course.createdAt()));
             ps.executeUpdate();
             try (var keys = ps.getGeneratedKeys()) {
                 if (keys.next()) {
@@ -386,7 +392,7 @@ public final class BackupService {
     }
 
     private record CourseDto(String name, String code, double credit, String teacher,
-                             Double targetScore, boolean archived, String createdAt) {
+                             String semester, Double targetScore, boolean archived, String createdAt) {
     }
 
     private record AssignmentDto(String course, String title, String dueAt, double weight,

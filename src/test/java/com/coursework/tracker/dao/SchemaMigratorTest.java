@@ -31,7 +31,7 @@ class SchemaMigratorTest {
 
             SchemaMigrator.migrate(database);
 
-            assertEquals("3", new SettingDao(database).get("schema.version", ""));
+            assertEquals("4", new SettingDao(database).get("schema.version", ""));
             assertEquals(2, database.queryLong(
                     "SELECT COUNT(*) FROM sqlite_master WHERE type='table' "
                             + "AND name IN ('ai_conversation','ai_message')"));
@@ -46,5 +46,50 @@ class SchemaMigratorTest {
             assertTrue(dao.insertIgnore(1, ReminderRule.OVERDUE, day2));
             assertEquals(3, dao.countAll());
         }
+    }
+
+    @Test
+    @DisplayName("v3 数据库升级到 v4：新增学期列并按创建时间推断，原有数据不丢")
+    void migrateV3ToV4() {
+        try (Database database = Database.inMemory()) {
+            database.execute("CREATE TABLE setting (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+            database.execute("CREATE TABLE course ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    + "name TEXT NOT NULL UNIQUE,"
+                    + "code TEXT,"
+                    + "credit REAL NOT NULL DEFAULT 0,"
+                    + "teacher TEXT,"
+                    + "target_score REAL,"
+                    + "archived INTEGER NOT NULL DEFAULT 0,"
+                    + "created_at TEXT NOT NULL)");
+            database.execute("CREATE TABLE assignment (id INTEGER PRIMARY KEY, course_id INTEGER, title TEXT)");
+            database.execute("INSERT INTO setting(key, value) VALUES('schema.version', '3')");
+            database.execute("INSERT INTO course(name, credit, archived, created_at) "
+                    + "VALUES('数据库原理', 3, 0, '2026-03-15 10:00:00')");
+            database.execute("INSERT INTO course(name, credit, archived, created_at) "
+                    + "VALUES('操作系统', 3, 0, '2026-10-01 10:00:00')");
+            database.execute("INSERT INTO assignment(id, course_id, title) VALUES(1, 1, '作业一')");
+
+            SchemaMigrator.migrate(database);
+
+            assertEquals("4", new SettingDao(database).get("schema.version", ""));
+            assertEquals(1, database.queryLong(
+                    "SELECT COUNT(*) FROM pragma_table_info('course') WHERE name = 'semester'"));
+            assertEquals("2025-2026-2", semesterOf(database, "数据库原理"));
+            assertEquals("2026-2027-1", semesterOf(database, "操作系统"));
+            assertEquals(1, database.queryLong("SELECT COUNT(*) FROM assignment"));
+        }
+    }
+
+    private static String semesterOf(Database database, String courseName) {
+        return database.query(connection -> {
+            try (var ps = connection.prepareStatement(
+                    "SELECT semester FROM course WHERE name = ?")) {
+                ps.setString(1, courseName);
+                try (var rs = ps.executeQuery()) {
+                    return rs.next() ? rs.getString(1) : null;
+                }
+            }
+        });
     }
 }

@@ -25,8 +25,8 @@
 | 定位 | 个人项目 · 持续维护的桌面效率工具 |
 | 技术栈 | Java 17 · Swing + FlatLaf · SQLite（JDBC）· JFreeChart · Maven |
 | 运行环境 | Windows 10/11 优先，Linux / macOS 可运行；JDK 17 及以上 |
-| 当前版本 | `v1.1.0` 正式版：AI 助手、批量操作、关于/作者页、安全更新 |
-| 质量 | 96 条自动化测试通过，`--selftest` 自检通过 |
+| 当前版本 | `v1.2.0`（本地更新版）：课程学期分组与删除、主界面常驻 AI 助手、AI 规划与风险分析 |
+| 质量 | 117 条自动化测试通过，`--selftest` 自检通过 |
 
 ---
 
@@ -44,6 +44,7 @@
 - **Windows 免安装版（推荐）**：`CourseWorkTracker-1.1.0-windows-x64.zip`，解压后双击 `CourseWorkTracker.exe`，内置 Java 运行时，不需要安装 JDK
 - **跨平台 jar 版**：`CourseWorkTracker-1.1.0.zip`，包含 `coursework-tracker.jar`、`启动作业哨兵.bat`、使用说明与 `.ico`；机器已装 JDK 17 时可用
 - 两个包都不包含 `data/`，不会携带任何本机数据
+- 公开 Release 仍为 v1.1.0；v1.2.0 是本地更新版，安装包尚未重新发布
 
 ```bash
 git clone https://github.com/suxiangyu138/coursework-tracker.git
@@ -72,9 +73,12 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 
 | 模块 | 功能 | 说明 |
 | --- | --- | --- |
+| 课程管理 | 录入 / 编辑 / 删除课程 | 课程名全局唯一，支持学分、教师、目标分；删除前自动备份，级联删除作业 |
+| | 学期分组 | 课程按「2026–2027 秋 / 2027–2028 春」分组，点击学期标题即可筛选该学期的作业 |
+| | 学期自动推断 | 老数据升级时按创建时间推断学期，之后可在课程对话框里随时修改 |
 | 作业管理 | 录入 / 编辑 / 删除作业 | 课程、标题、截止时间、权重(%)、预计耗时、备注 |
 | | 状态流转 | 未开始 → 进行中 → 已完成 / 已提交 |
-| | 筛选与搜索 | 按课程、状态、关键词过滤 |
+| | 筛选与搜索 | 按课程、学期、状态、关键词过滤 |
 | 倒计时 | 实时倒计时 | 秒级刷新，显示「3天 04:12:05」/「已逾期 2 天」 |
 | | 颜色语义 | 红（<24h）/ 橙（<72h）/ 黄（<7d）/ 绿 / 灰（已完成） |
 | | 紧急度排序 | 综合剩余时间、权重、预计耗时计算，可切换按截止时间 / 权重 / 紧急度排序 |
@@ -91,9 +95,11 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 | | 单实例运行 | 重复启动不产生两个托盘图标 |
 | | 关于与作者 | 产品版本、作者联系方式、运行环境与数据目录 |
 | | 安全更新 | 选择新版本 jar，备份数据库后只替换程序，data 不丢 |
-| AI 助手 | 自然语言对话 | 接入 DeepSeek Chat Completions，可建课程、建/改/删作业、查询作业 |
-| | 会话管理 | 历史对话相互隔离，支持新建、删除、重置上下文 |
-| | 安全执行 | 写操作先弹确认框，拒绝则不执行；只读查询自动执行 |
+| AI 助手 | 主界面常驻 | 右侧 AI 面板默认展开，不打开对话框也能看到任务洞察、输入问题和一键规划 |
+| | 本地任务洞察 | 离线计算逾期、今日/7 天截止、剩余工作量、权重完成度与最高优先级任务 |
+| | 规划与风险分析 | 「今日计划」「本周风险」一键生成具体时间表、风险等级和下一步行动 |
+| | 数据操作 | 建课程、建/改/删作业、批量修改、查课程、改课程、删课程；写操作先确认 |
+| | 智能去重 | 课程名按空格、全半角、大小写、连接符归一化；相似课程先提示候选，不重复创建 |
 
 ### P1 · 增强功能
 
@@ -101,14 +107,16 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 - ✅ GPA 预估：加权绩点，标准 4.0 映射
 - ✅ 静音时段（默认 23:00–07:00 不弹窗，恢复后合并播报）
 - ✅ 错过提醒补偿：程序未运行期间错过的提醒，启动后补发一次
-- ✅ 课程管理（学分、教师、目标分）
+- ✅ 课程管理（学分、教师、目标分、学期、删除）
+- ✅ 主界面 AI 助手：本地任务洞察、今日计划、本周风险分析
+- ✅ AI 课程工具：查课程、改课程（含学期）、删课程；创建前自动去重
 - ✅ 深色主题（设置中切换，即时生效）
 - ✅ 数据导出 / 导入：JSON 全量备份、CSV 作业清单；导入前自动备份、失败整体回滚
 - ✅ 开机自启（Windows 注册表启动项，设置内可开关，默认关闭）
 
 ### P2 · 扩展（不做，仅记录）
 
-- 月历视图、多学期归档、云同步、教务系统导入、移动端。
+- 月历视图、云同步、教务系统导入、移动端。
 
 ---
 
@@ -124,8 +132,11 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 
 界面特点：
 
-- 左侧课程列表带完成率进度条，点击即筛选；
+- 左侧课程列表按学期分组，带完成率进度条，点击课程筛选作业，点击学期标题筛选整个学期；
+- 课程列表底部有「新建课程 / 编辑 / 删除」按钮，右键菜单与双击也可编辑，删除前自动备份数据库；
 - 表格按紧急度排序，倒计时按紧迫度着色，逾期显示深红；
+- 右侧是常驻 AI 助手：顶部自动分析当前任务（逾期、今日/7 天截止、剩余工作量、最高优先级），
+  可直接输入问题，或点「今日计划」「本周风险」生成具体建议；「收起」后可从工具栏「AI 面板」重新展开；
 - 底部 6 个指标卡（今日/本周/逾期/完成率/权重完成度/预计 GPA）+ 两张图表；
 - 关闭窗口最小化到托盘，提醒以气泡弹出；
 - 提醒中心（`Ctrl+R`）可回看历史提醒；「文件」菜单支持 JSON/CSV 导出与导入。
@@ -297,12 +308,12 @@ javaw -Xms32m -Xmx256m -XX:+UseSerialGC -jar <项目路径>\dist\coursework-trac
 | 多线程与定时器 | `ScheduledExecutorService` 周期扫描提醒 + `javax.swing.Timer` 秒级刷新界面，Swing 单线程模型与后台线程通过 `SwingUtilities.invokeLater` 安全交接 |
 | 集合与排序 | `Comparator` 多级排序（紧急度 → 截止 → 权重 → id）、`TableRowSorter` 表头排序、`Record` 不可变数据 |
 | 面向对象设计 | 三层架构（UI / Service / DAO）、接口与实现分离、枚举状态机、不可变值对象（`record`） |
-| JDBC 数据库编程 | SQLite 连接管理、PreparedStatement 防注入、事务、索引、外键级联、建表脚本与版本迁移 |
-| 图形界面 | Swing 自定义 `JTable` 渲染器（紧急度进度条、倒计时着色）、`ListCellRenderer`（课程进度条）、FlatLaf 主题 |
+| JDBC 数据库编程 | SQLite 连接管理、PreparedStatement 防注入、事务、索引、外键级联、建表脚本与版本迁移（v4 只加列不重建表，按创建时间推断学期） |
+| 图形界面 | Swing 自定义 `JTable` 渲染器、`ListCellRenderer`（课程进度条 + 学期分组标题）、右侧常驻 AI 面板、FlatLaf 主题 |
 | 图表绘制 | JFreeChart 柱状图封装为可复用面板，跟随浅色/深色主题 |
 | 文件与 IO | 单实例文件锁、日志文件、SQLite `VACUUM INTO` 在线快照、JSON（Gson）导出/导入、CSV（UTF-8 BOM） |
-| HTTP 与 Agent | `java.net.http.HttpClient` 调用 DeepSeek，function calling 解析工具调用，确认后执行，`SwingWorker` 后台请求 |
-| 测试 | JUnit 5：96 条自动化测试（含 12 条 DAO 集成测试），`@TempDir`/内存库隔离 |
+| HTTP 与 Agent | `java.net.http.HttpClient` 调用 DeepSeek，function calling 解析工具调用，确认后执行，`SwingWorker` 后台请求；本地任务快照 + 规划提示词让 AI 给出具体时间表 |
+| 测试 | JUnit 5：117 条自动化测试（含 12 条 DAO 集成测试），`@TempDir`/内存库隔离 |
 
 ---
 
@@ -328,7 +339,7 @@ coursework-tracker/
 │   ├── ui/                     # MainFrame、TrayController、ThemeManager、panel/、dialog/、table/
 │   └── util/                   # TimeUtils、Formatters、UrgencyCalculator、GradeCalculator
 ├── src/main/resources/db/schema.sql
-└── src/test/java/…             # 13 个测试类，96 条测试
+└── src/test/java/…             # 17 个测试类，117 条测试
 ```
 
 ---

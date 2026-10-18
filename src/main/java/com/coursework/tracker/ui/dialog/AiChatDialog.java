@@ -2,6 +2,7 @@ package com.coursework.tracker.ui.dialog;
 
 import com.coursework.tracker.ai.AiConfig;
 import com.coursework.tracker.ai.AiException;
+import com.coursework.tracker.ai.AiPromptBuilder;
 import com.coursework.tracker.core.AppContext;
 import com.coursework.tracker.core.ClockProvider;
 import com.coursework.tracker.dao.AiChatDao;
@@ -10,7 +11,6 @@ import com.coursework.tracker.model.AiMessage;
 import com.coursework.tracker.ui.AppIcon;
 import com.coursework.tracker.ui.PlainText;
 import com.coursework.tracker.util.Formatters;
-import com.coursework.tracker.util.TimeUtils;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -347,7 +347,7 @@ public final class AiChatDialog extends JDialog {
             @Override
             protected String doInBackground() throws Exception {
                 return context.aiAgentService().chat(config, currentConversationId,
-                        buildSystemPrompt(), AiChatDialog.this::confirmActions);
+                        AiPromptBuilder.build(context), AiChatDialog.this::confirmActions);
             }
 
             @Override
@@ -397,35 +397,6 @@ public final class AiChatDialog extends JDialog {
         }
         LOG.info("AI 执行计划确认结果：" + approved[0]);
         return approved[0];
-    }
-
-    private String buildSystemPrompt() {
-        LocalDateTime now = ClockProvider.now();
-        int courseCount = context.courseService().list().size();
-        int assignmentCount = context.assignmentService().listAll().size();
-        return """
-                你既是「作业哨兵」的作业管理助手，也是一个通用的中文写作与理解助手。
-                当前时间：%s %s
-                数据概况：%d 门课程、%d 条作业。
-
-                规则：
-                1. 用简体中文回答，简洁直接。
-                2. 用户让你改写、润色、总结、解释、翻译、列提纲、分析长文时，直接完成，
-                   不要调用工具，也不要强行关联课程作业。
-                3. 面对模糊或复杂的请求：先用一句话复述你的理解，指出缺失的关键信息
-                   （哪门课、哪条作业、什么时间、权重多少），向用户提问；信息不足时不要猜测执行。
-                4. 信息足够时，先简述执行计划，然后直接调用工具；执行计划会由界面弹窗让用户确认，
-                   不要在文字里停下来等待确认。
-                5. 涉及批量修改（推迟、统一截止、统一状态）时，必须给出筛选条件和唯一改动，
-                   先用 list_assignments 确认范围，再调用 batch_update_assignments。
-                6. 只有明确涉及课程/作业数据的增删改查时，才调用工具，不要只在文字里描述。
-                7. 日期时间格式统一为 yyyy-MM-dd HH:mm。
-                8. 不确定课程或作业是否存在时，先调用 list_assignments 查询，必要时用 create_course 新建课程。
-                9. 不要编造不存在的课程或作业；工具执行失败时如实说明原因。
-                10. 用户拒绝执行后不要再次尝试同样的修改。
-                11. 输出纯文本，不要使用 Markdown（不要用 **、#、反引号、代码块、表格）；
-                    需要分点时用“1.”“·”和换行。
-                """.formatted(Formatters.display(now), TimeUtils.weekday(now), courseCount, assignmentCount);
     }
 
     private void setBusy(boolean value) {

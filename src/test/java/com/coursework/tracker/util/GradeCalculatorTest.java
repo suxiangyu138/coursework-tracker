@@ -22,7 +22,7 @@ class GradeCalculatorTest {
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 10, 18, 14, 25);
 
     private static Course course(double target) {
-        return new Course(1L, "数据库原理", null, 3.0, null, target, false, NOW);
+        return new Course(1L, "数据库原理", null, 3.0, null, null, target, false, NOW);
     }
 
     private static Assignment scored(long id, double weight, double score) {
@@ -132,8 +132,8 @@ class GradeCalculatorTest {
     @Test
     @DisplayName("学分加权 GPA")
     void gpa() {
-        Course first = new Course(1L, "操作系统", null, 3.0, null, null, false, NOW);
-        Course second = new Course(2L, "英语", null, 2.0, null, null, false, NOW);
+        Course first = new Course(1L, "操作系统", null, 3.0, null, null, null, false, NOW);
+        Course second = new Course(2L, "英语", null, 2.0, null, null, null, false, NOW);
         CourseGrade a = GradeCalculator.compute(first, List.of(scored(1, 100, 85)), GradeScale.STANDARD_4);
         Assignment english = new Assignment(2, 2L, "听写", NOW, 100, null, AssignmentStatus.DONE,
                 NOW, 78.0, null, NOW, NOW);
@@ -144,7 +144,7 @@ class GradeCalculatorTest {
     @Test
     @DisplayName("无学分课程不参与 GPA 分母")
     void gpaSkipsZeroCredit() {
-        Course zero = new Course(3L, "讲座", null, 0, null, null, false, NOW);
+        Course zero = new Course(3L, "讲座", null, 0, null, null, null, false, NOW);
         CourseGrade grade = GradeCalculator.compute(zero, List.of(scored(9, 100, 95)),
                 GradeScale.STANDARD_4);
         assertEquals(0.0, GradeCalculator.gpa(List.of(grade)), 0.0001);

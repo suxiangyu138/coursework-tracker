@@ -4,9 +4,12 @@ import com.coursework.tracker.core.ClockProvider;
 import com.coursework.tracker.model.Assignment;
 import com.coursework.tracker.model.AssignmentStatus;
 import com.coursework.tracker.model.Course;
+import com.coursework.tracker.model.Semester;
 import com.coursework.tracker.service.AssignmentService;
+import com.coursework.tracker.service.BackupService;
 import com.coursework.tracker.service.BusinessException;
 import com.coursework.tracker.service.CourseService;
+import com.coursework.tracker.util.CourseNameMatcher;
 import com.coursework.tracker.util.Formatters;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -16,24 +19,33 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 执行 AI 工具调用。所有写操作由调用方先做用户确认；这里只负责解析参数、调用 Service、返回可读结果。
  */
 public final class AiActionExecutor {
 
+    private static final Set<String> READ_ONLY_TOOLS =
+            Set.of(AiTools.LIST_ASSIGNMENTS, AiTools.LIST_COURSES);
+    private static final double SIMILAR_THRESHOLD = 0.55;
+
     private final CourseService courseService;
     private final AssignmentService assignmentService;
+    private final BackupService backupService;
 
-    public AiActionExecutor(CourseService courseService, AssignmentService assignmentService) {
+    public AiActionExecutor(CourseService courseService, AssignmentService assignmentService,
+                            BackupService backupService) {
         this.courseService = courseService;
         this.assignmentService = assignmentService;
+        this.backupService = backupService;
     }
 
     public boolean isMutating(String toolName) {
-        return !AiTools.LIST_ASSIGNMENTS.equals(toolName);
+        return !READ_ONLY_TOOLS.contains(toolName);
     }
 
     /** 给确认对话框展示的人类可读描述。 */
@@ -41,8 +53,10 @@ public final class AiActionExecutor {
         try {
             JsonObject args = args(call);
             return switch (call.name()) {
-                case AiTools.CREATE_COURSE -> "新建课程：" + text(args, "name")
-                        + "（" + number(args, "credit", 3) + " 学分）";
+                case AiTools.CREATE_COURSE -> createCoursePreview(args);
+                case AiTools.UPDATE_COURSE -> updateCoursePreview(args);
+                case AiTools.DELETE_COURSE -> deleteCoursePreview(args);
+                case AiTools.LIST_COURSES -> "查询课程：" + courseFilterText(args);
                 case AiTools.CREATE_ASSIGNMENT -> "新建作业：" + text(args, "course") + " · "
                         + text(args, "title") + "，截止 " + formatDueText(text(args, "dueAt"))
                         + "，权重 " + number(args, "weight", 0) + "%";
@@ -62,6 +76,9 @@ public final class AiActionExecutor {
             JsonObject args = args(call);
             return switch (call.name()) {
                 case AiTools.CREATE_COURSE -> createCourse(args);
+                case AiTools.UPDATE_COURSE -> updateCourse(args);
+                case AiTools.DELETE_COURSE -> deleteCourse(args);
+                case AiTools.LIST_COURSES -> listCourses(args);
                 case AiTools.CREATE_ASSIGNMENT -> createAssignment(args);
                 case AiTools.UPDATE_ASSIGNMENT -> updateAssignment(args);
                 case AiTools.DELETE_ASSIGNMENT -> deleteAssignment(args);
@@ -78,12 +95,327 @@ public final class AiActionExecutor {
 
     private String createCourse(JsonObject args) throws AiException {
         String name = required(args, "name");
+        boolean forceNew = bool(args, "forceNew");
+
+        Course exact = findExactCourse(name);
+        if (exact != null) {
+            if (forceNew) {
+                throw new AiException("课程「" + exact.name() + "」已存在（" + exact.semesterLabel()
+                        + "，ID=" + exact.id() + "）。课程名需全局唯一，请直接复用已有课程，"
+                        + "或换一个更具体的课程名。");
+            }
+            return "课程「" + exact.name() + "」已存在（" + exact.semesterLabel()
+                    + "，ID=" + exact.id() + "），已直接复用，没有重复创建。";
+        }
+        if (!forceNew) {
+            List<Course> similar = similarCourses(name, 3);
+            if (!similar.isEmpty()) {
+                return "未创建课程「" + name + "」：检测到可能重复的已有课程 "
+                        + courseListText(similar)
+                        + "。请先确认是否复用已有课程；如果确实是另一门课，"
+                        + "请让用户补充更具体的名称，或确认后再用 forceNew=true 创建。";
+            }
+        }
+
         double credit = number(args, "credit", 3);
         String teacher = optionalText(args, "teacher");
         Double target = args.has("targetScore") && !args.get("targetScore").isJsonNull()
                 ? args.get("targetScore").getAsDouble() : null;
-        Course course = courseService.create(name, null, credit, teacher, target);
-        return "已新建课程：" + course.name() + "（" + course.credit() + " 学分）";
+        String semester = resolveSemester(args);
+        Course course = courseService.create(name, null, credit, teacher, semester, target);
+        return "已新建课程：" + course.name() + "（" + course.credit() + " 学分 · "
+                + course.semesterLabel() + "，ID=" + course.id() + "）";
+    }
+
+    private String createCoursePreview(JsonObject args) {
+        String name = text(args, "name");
+        Course exact = findExactCourse(name);
+        if (exact != null) {
+            return "新建课程：" + name + " → 已存在（" + exact.semesterLabel() + "，ID="
+                    + exact.id() + "），将复用，不会重复创建";
+        }
+        List<Course> similar = similarCourses(name, 3);
+        if (!similar.isEmpty() && !bool(args, "forceNew")) {
+            return "新建课程：" + name + " → 检测到相似课程 " + courseListText(similar)
+                    + "，将暂不创建并请你确认";
+        }
+        return "新建课程：" + name + "（" + number(args, "credit", 3) + " 学分，"
+                + semesterLabel(args) + "）";
+    }
+
+    private String updateCourse(JsonObject args) throws AiException {
+        Course existing = findCourse(required(args, "course"));
+        String name = existing.name();
+        if (args.has("newName")) {
+            String newName = optionalText(args, "newName");
+            if (newName == null) {
+                throw new AiException("新课程名不能为空");
+            }
+            name = newName;
+        }
+        double credit = existing.credit();
+        if (args.has("credit") && !args.get("credit").isJsonNull()) {
+            credit = args.get("credit").getAsDouble();
+        }
+        String teacher = existing.teacher();
+        if (args.has("teacher")) {
+            teacher = optionalText(args, "teacher");
+        }
+        String semester = existing.semester();
+        if (args.has("semester")) {
+            semester = parseSemesterValue(args.get("semester"));
+        }
+        Double target = existing.targetScore();
+        if (args.has("targetScore")) {
+            JsonElement element = args.get("targetScore");
+            if (element == null || element.isJsonNull()) {
+                target = null;
+            } else {
+                double value = element.getAsDouble();
+                target = value <= 0 ? null : value;
+            }
+        }
+
+        Course updated = new Course(existing.id(), name, existing.code(), credit, teacher,
+                semester, target, existing.archived(), existing.createdAt());
+        if (existing.equals(updated)) {
+            throw new AiException("没有提供要修改的字段，课程未发生变化");
+        }
+        courseService.update(updated);
+        return "已更新课程：" + updated.name() + "（" + updated.semesterLabel()
+                + "，ID=" + updated.id() + "）";
+    }
+
+    private String updateCoursePreview(JsonObject args) {
+        try {
+            Course course = findCourse(required(args, "course"));
+            List<String> changes = new ArrayList<>();
+            if (args.has("newName") && optionalText(args, "newName") != null) {
+                changes.add("课程名改为「" + optionalText(args, "newName") + "」");
+            }
+            if (args.has("semester")) {
+                changes.add("学期改为 " + Semester.display(parseSemesterValue(args.get("semester"))));
+            }
+            if (args.has("credit") && !args.get("credit").isJsonNull()) {
+                changes.add("学分改为 " + formatNumber(args.get("credit")));
+            }
+            if (args.has("teacher")) {
+                String teacher = optionalText(args, "teacher");
+                changes.add(teacher == null ? "清空教师" : "教师改为 " + teacher);
+            }
+            if (args.has("targetScore")) {
+                JsonElement element = args.get("targetScore");
+                if (element == null || element.isJsonNull() || element.getAsDouble() <= 0) {
+                    changes.add("清空目标分");
+                } else {
+                    changes.add("目标分改为 " + formatNumber(element));
+                }
+            }
+            return "修改课程：" + course.name() + " → "
+                    + (changes.isEmpty() ? "未指定字段" : String.join("，", changes));
+        } catch (AiException | RuntimeException e) {
+            return "修改课程：" + text(args, "course");
+        }
+    }
+
+    private String deleteCourse(JsonObject args) throws AiException {
+        Course course = findCourse(required(args, "course"));
+        long count = courseService.assignmentCount(course.id());
+        try {
+            backupService.backupNow();
+            courseService.delete(course.id());
+        } catch (RuntimeException e) {
+            throw new AiException("删除课程失败（删除前已尝试备份）：" + e.getMessage(), e);
+        }
+        return "已删除课程：" + course.name() + "（同时删除 " + count
+                + " 条作业及其提醒记录，删除前已备份数据库）";
+    }
+
+    private String deleteCoursePreview(JsonObject args) {
+        try {
+            Course course = findCourse(required(args, "course"));
+            long count = courseService.assignmentCount(course.id());
+            return "删除课程：" + course.name() + "（" + course.semesterLabel() + "）"
+                    + "，会同时删除 " + count + " 条作业及其提醒记录；删除前自动备份数据库，不可撤销";
+        } catch (AiException | RuntimeException e) {
+            return "删除课程：" + text(args, "course") + "（会级联删除该课程下的全部作业）";
+        }
+    }
+
+    private String listCourses(JsonObject args) throws AiException {
+        List<Course> courses = new ArrayList<>(courseService.list());
+        String semesterFilter = optionalText(args, "semester");
+        if (semesterFilter != null) {
+            if (isUnassignedSemester(semesterFilter)) {
+                courses.removeIf(course -> Semester.normalize(course.semester()) != null);
+            } else {
+                String code = Semester.parse(semesterFilter).map(Semester::code)
+                        .orElse(semesterFilter.trim());
+                courses.removeIf(course -> !code.equals(Semester.normalize(course.semester())));
+            }
+        }
+        String keyword = optionalText(args, "keyword");
+        if (keyword != null) {
+            String normalized = CourseNameMatcher.normalize(keyword);
+            courses.removeIf(course -> !CourseNameMatcher.normalize(course.name()).contains(normalized)
+                    && (course.teacher() == null
+                    || !CourseNameMatcher.normalize(course.teacher()).contains(normalized)));
+        }
+        if (courses.isEmpty()) {
+            return "没有符合条件的课程。";
+        }
+
+        Map<Long, Integer> assignmentCounts = new HashMap<>();
+        for (Assignment assignment : assignmentService.listAll()) {
+            assignmentCounts.merge(assignment.courseId(), 1, Integer::sum);
+        }
+
+        Map<String, List<Course>> groups = new LinkedHashMap<>();
+        for (Course course : courses) {
+            String key = Semester.normalize(course.semester()) == null
+                    ? "" : Semester.normalize(course.semester());
+            groups.computeIfAbsent(key, ignored -> new ArrayList<>()).add(course);
+        }
+        List<String> semesters = new ArrayList<>(groups.keySet());
+        semesters.sort(AiActionExecutor::compareSemesterKeys);
+
+        StringBuilder builder = new StringBuilder("共 ").append(courses.size()).append(" 门课程：\n");
+        for (String semester : semesters) {
+            builder.append("【").append(Semester.display(semester)).append("】\n");
+            List<Course> group = groups.get(semester);
+            group.sort(Comparator.comparing(Course::name));
+            for (Course course : group) {
+                builder.append("- ").append(course.name())
+                        .append("（ID ").append(course.id()).append("）")
+                        .append(" | ").append(course.credit()).append(" 学分")
+                        .append(" | 教师 ").append(course.teacher() == null ? "—" : course.teacher())
+                        .append(" | ").append(assignmentCounts.getOrDefault(course.id(), 0))
+                        .append(" 项作业\n");
+            }
+        }
+        return builder.toString().trim();
+    }
+
+    private static String courseFilterText(JsonObject args) {
+        List<String> parts = new ArrayList<>();
+        String semester = optionalText(args, "semester");
+        if (semester != null) {
+            parts.add("学期=" + Semester.display(semester));
+        }
+        String keyword = optionalText(args, "keyword");
+        if (keyword != null) {
+            parts.add("关键词=" + keyword);
+        }
+        return parts.isEmpty() ? "全部课程" : String.join("，", parts);
+    }
+
+    /** 学期参数：合法编码就用编码；省略/无法识别时使用当前学期。 */
+    private static String resolveSemester(JsonObject args) {
+        String value = optionalText(args, "semester");
+        if (value == null) {
+            return Semester.current(ClockProvider.now()).code();
+        }
+        return parseSemesterValue(value);
+    }
+
+    private static String parseSemesterValue(JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            return null;
+        }
+        return parseSemesterValue(element.getAsString());
+    }
+
+    private static String parseSemesterValue(String value) {
+        String text = Semester.normalize(value);
+        if (text == null || isUnassignedSemester(text)) {
+            return null;
+        }
+        return Semester.parse(text).map(Semester::code).orElse(text);
+    }
+
+    private static boolean isUnassignedSemester(String value) {
+        if (value == null) {
+            return true;
+        }
+        String text = value.trim();
+        return text.isEmpty() || "未分学期".equals(text) || "未分类".equals(text)
+                || "none".equalsIgnoreCase(text);
+    }
+
+    private static String semesterLabel(JsonObject args) {
+        String value = optionalText(args, "semester");
+        if (value == null) {
+            return Semester.current(ClockProvider.now()).label();
+        }
+        return Semester.display(value);
+    }
+
+    private Course findExactCourse(String name) {
+        String normalized = CourseNameMatcher.normalize(name);
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        for (Course course : courseService.list()) {
+            if (CourseNameMatcher.normalize(course.name()).equals(normalized)) {
+                return course;
+            }
+        }
+        return null;
+    }
+
+    private List<Course> similarCourses(String name, int limit) {
+        String normalized = CourseNameMatcher.normalize(name);
+        if (normalized.isEmpty()) {
+            return List.of();
+        }
+        List<Course> candidates = new ArrayList<>();
+        for (Course course : courseService.list()) {
+            if (CourseNameMatcher.similarity(name, course.name()) >= SIMILAR_THRESHOLD) {
+                candidates.add(course);
+            }
+        }
+        candidates.sort(Comparator.comparingDouble(
+                (Course course) -> CourseNameMatcher.similarity(name, course.name())).reversed());
+        return candidates.size() <= limit ? candidates : new ArrayList<>(candidates.subList(0, limit));
+    }
+
+    private static String courseListText(List<Course> courses) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < courses.size(); i++) {
+            Course course = courses.get(i);
+            if (i > 0) {
+                builder.append("、");
+            }
+            builder.append("「").append(course.name()).append("」（")
+                    .append(course.semesterLabel()).append("，ID=").append(course.id()).append("）");
+        }
+        return builder.toString();
+    }
+
+    private static int compareSemesterKeys(String left, String right) {
+        java.util.Optional<Semester> leftSemester = Semester.parse(left);
+        java.util.Optional<Semester> rightSemester = Semester.parse(right);
+        if (leftSemester.isPresent() && rightSemester.isPresent()) {
+            return rightSemester.get().compareTo(leftSemester.get());
+        }
+        if (leftSemester.isPresent()) {
+            return -1;
+        }
+        if (rightSemester.isPresent()) {
+            return 1;
+        }
+        boolean leftBlank = left == null || left.isBlank();
+        boolean rightBlank = right == null || right.isBlank();
+        if (leftBlank && rightBlank) {
+            return 0;
+        }
+        if (leftBlank) {
+            return 1;
+        }
+        if (rightBlank) {
+            return -1;
+        }
+        return left.compareTo(right);
     }
 
     private String createAssignment(JsonObject args) throws AiException {
@@ -196,13 +528,13 @@ public final class AiActionExecutor {
      * 批量筛选：至少一个条件，避免模型误改全部作业。
      */
     private List<Assignment> selectForBatch(JsonObject args) throws AiException {
-        String courseFilter = optionalText(args, "course");
+        String courseText = optionalText(args, "course");
         String statusFilter = optionalText(args, "status");
         boolean unfinished = bool(args, "unfinished");
         LocalDateTime from = optionalDate(args, "from");
         LocalDateTime to = optionalDate(args, "to");
 
-        if (courseFilter == null && statusFilter == null && !unfinished && from == null && to == null) {
+        if (courseText == null && statusFilter == null && !unfinished && from == null && to == null) {
             throw new AiException("批量操作至少要有一个筛选条件（course / status / unfinished / from / to）");
         }
         if (from != null && to != null && from.isAfter(to)) {
@@ -225,13 +557,12 @@ public final class AiActionExecutor {
         if (changes != 1) {
             throw new AiException("批量修改需要且只能提供一个改动（postponeDays / setDueAt / setStatus）");
         }
+        Course courseFilter = courseText == null ? null : findCourse(courseText);
 
         AssignmentStatus status = statusFilter == null ? null : parseStatus(statusFilter);
-        Map<Long, String> courseNames = courseNames();
         List<Assignment> matches = new ArrayList<>();
         for (Assignment assignment : assignmentService.listAll()) {
-            String courseName = courseNames.getOrDefault(assignment.courseId(), "未分类");
-            if (courseFilter != null && !courseFilter.equalsIgnoreCase(courseName)) {
+            if (courseFilter != null && assignment.courseId() != courseFilter.id()) {
                 continue;
             }
             if (status != null && assignment.status() != status) {
@@ -312,11 +643,12 @@ public final class AiActionExecutor {
     }
 
     private String listAssignments(JsonObject args) throws AiException {
-        String courseFilter = optionalText(args, "course");
+        String courseText = optionalText(args, "course");
         String statusFilter = optionalText(args, "status");
         Integer withinDays = args.has("withinDays") && !args.get("withinDays").isJsonNull()
                 ? args.get("withinDays").getAsInt() : null;
 
+        Course courseFilter = courseText == null ? null : findCourse(courseText);
         Map<Long, String> courseNames = courseNames();
         AssignmentStatus status = statusFilter == null ? null : parseStatus(statusFilter);
         LocalDateTime now = ClockProvider.now();
@@ -324,8 +656,7 @@ public final class AiActionExecutor {
 
         List<Assignment> matches = new ArrayList<>();
         for (Assignment assignment : assignmentService.listAll()) {
-            String courseName = courseNames.getOrDefault(assignment.courseId(), "未分类");
-            if (courseFilter != null && !courseFilter.equalsIgnoreCase(courseName)) {
+            if (courseFilter != null && assignment.courseId() != courseFilter.id()) {
                 continue;
             }
             if (status != null && assignment.status() != status) {
@@ -375,24 +706,78 @@ public final class AiActionExecutor {
         }
     }
 
-    private Course findCourse(String name) throws AiException {
-        for (Course course : courseService.list()) {
-            if (course.name().equalsIgnoreCase(name)) {
-                return course;
+    /**
+     * 课程定位：支持课程 ID、精确名称、归一化名称（空格/全半角/大小写不敏感）。
+     * 名称只是相似时不会猜测，而是把候选课程列出来让模型向用户确认。
+     */
+    private Course findCourse(String reference) throws AiException {
+        List<Course> courses = courseService.list();
+        Long id = parseId(reference);
+        if (id != null) {
+            for (Course course : courses) {
+                if (course.id() == id) {
+                    return course;
+                }
             }
         }
-        throw new AiException("课程「" + name + "」不存在，请先新建课程");
+
+        String normalized = CourseNameMatcher.normalize(reference);
+        if (normalized.isEmpty()) {
+            throw new AiException("课程参数不能为空");
+        }
+        List<Course> exact = new ArrayList<>();
+        for (Course course : courses) {
+            if (CourseNameMatcher.normalize(course.name()).equals(normalized)) {
+                exact.add(course);
+            }
+        }
+        if (exact.size() == 1) {
+            return exact.get(0);
+        }
+        if (exact.size() > 1) {
+            throw new AiException("课程「" + reference + "」匹配到多门课程，请改用课程 ID："
+                    + courseListText(exact));
+        }
+
+        List<Course> similar = new ArrayList<>();
+        for (Course course : courses) {
+            if (CourseNameMatcher.similarity(reference, course.name()) >= SIMILAR_THRESHOLD) {
+                similar.add(course);
+            }
+        }
+        if (!similar.isEmpty()) {
+            similar.sort(Comparator.comparingDouble(
+                    (Course course) -> CourseNameMatcher.similarity(reference, course.name()))
+                    .reversed());
+            List<Course> top = similar.size() <= 3 ? similar
+                    : new ArrayList<>(similar.subList(0, 3));
+            throw new AiException("没有找到课程「" + reference + "」。你可能是指："
+                    + courseListText(top) + "。请使用完整课程名或课程 ID。");
+        }
+        throw new AiException("课程「" + reference + "」不存在。请先调用 list_courses 查看已有课程，"
+                + "必要时再用 create_course 新建。");
     }
 
-    private Assignment findAssignment(String title, String courseName) throws AiException {
-        Map<Long, String> courseNames = courseNames();
+    private static Long parseId(String reference) {
+        if (reference == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(reference.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private Assignment findAssignment(String title, String courseReference) throws AiException {
+        Course course = courseReference == null || courseReference.isBlank()
+                ? null : findCourse(courseReference);
         List<Assignment> matches = new ArrayList<>();
         for (Assignment assignment : assignmentService.listAll()) {
             if (!assignment.title().equalsIgnoreCase(title)) {
                 continue;
             }
-            String name = courseNames.getOrDefault(assignment.courseId(), "未分类");
-            if (courseName != null && !courseName.equalsIgnoreCase(name)) {
+            if (course != null && assignment.courseId() != course.id()) {
                 continue;
             }
             matches.add(assignment);
@@ -401,7 +786,7 @@ public final class AiActionExecutor {
             throw new AiException("没有找到作业「" + title + "」");
         }
         if (matches.size() > 1) {
-            throw new AiException("找到多条同名作业，请指定课程（course 参数）");
+            throw new AiException("找到多条同名作业，请指定课程（course 参数，可用课程名或 ID）");
         }
         return matches.get(0);
     }
