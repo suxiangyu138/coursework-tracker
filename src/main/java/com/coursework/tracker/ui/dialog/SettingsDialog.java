@@ -21,6 +21,7 @@ import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingWorker;
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -152,6 +153,10 @@ public final class SettingsDialog extends JDialog {
         JPanel aiTestPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         aiTestPanel.setOpaque(false);
         aiStatusLabel.setForeground(new java.awt.Color(0x6B7280));
+        // 固定状态区宽度：错误信息可能很长，JLabel 会撑大 GridBagLayout，导致整个设置页错位
+        aiStatusLabel.setPreferredSize(new Dimension(340, 18));
+        aiStatusLabel.setMinimumSize(new Dimension(340, 18));
+        aiStatusLabel.setToolTipText(null);
         aiTestPanel.add(aiTestButton);
         aiTestPanel.add(aiStatusLabel);
         form.add(aiTestPanel, gbc);
@@ -259,13 +264,12 @@ public final class SettingsDialog extends JDialog {
     private void testAiConnection() {
         AiConfig current = readAiConfig();
         if (current.apiKey().isBlank()) {
-            aiStatusLabel.setText("请先填写 API Key");
+            setAiStatus("请先填写 API Key", new java.awt.Color(0xC62828));
             return;
         }
         AiConfig test = new AiConfig(true, current.apiKey(), current.baseUrl(), current.model());
         aiTestButton.setEnabled(false);
-        aiStatusLabel.setForeground(new java.awt.Color(0x6B7280));
-        aiStatusLabel.setText("正在连接…");
+        setAiStatus("正在连接…", new java.awt.Color(0x6B7280));
 
         new SwingWorker<Void, Void>() {
             @Override
@@ -279,14 +283,25 @@ public final class SettingsDialog extends JDialog {
                 aiTestButton.setEnabled(true);
                 try {
                     get();
-                    aiStatusLabel.setForeground(new java.awt.Color(0x2E7D32));
-                    aiStatusLabel.setText("连接成功");
+                    setAiStatus("连接成功", new java.awt.Color(0x2E7D32));
                 } catch (Exception e) {
                     Throwable cause = e.getCause() == null ? e : e.getCause();
-                    aiStatusLabel.setForeground(new java.awt.Color(0xC62828));
-                    aiStatusLabel.setText("连接失败：" + cause.getMessage());
+                    String message = cause.getMessage() == null
+                            ? cause.getClass().getSimpleName() : cause.getMessage();
+                    setAiStatus("连接失败：" + message, new java.awt.Color(0xC62828));
                 }
             }
         }.execute();
+    }
+
+    /** 状态区只显示一行短文本，完整错误放 tooltip，避免长文本撑坏布局。 */
+    private void setAiStatus(String text, java.awt.Color color) {
+        String oneLine = text == null ? "" : text.replaceAll("\\s+", " ").trim();
+        String display = oneLine.length() <= 46 ? oneLine : oneLine.substring(0, 46) + "…";
+        aiStatusLabel.setText(display);
+        aiStatusLabel.setToolTipText(oneLine);
+        aiStatusLabel.setForeground(color);
+        aiStatusLabel.revalidate();
+        aiStatusLabel.repaint();
     }
 }

@@ -30,6 +30,7 @@
 
 ### 修复
 
+- API Key 错误时设置页布局错乱：错误全文把 JLabel 撑到 797px，挤坏 GridBagLayout；状态区改为固定宽度、单行截断，完整错误放 tooltip
 - 托盘右键菜单中文显示为方块：Windows 原生 AWT 菜单固定使用系统菜单字体（英文系统为 Segoe UI，无中文字形），改用 Swing `JPopupMenu` 自绘菜单
 - 托盘菜单改为左键/右键都可弹出，菜单项使用界面同一套中文字体
 
