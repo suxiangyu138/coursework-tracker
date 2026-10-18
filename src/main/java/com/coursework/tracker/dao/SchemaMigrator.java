@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 public final class SchemaMigrator {
 
     private static final Logger LOG = Logger.getLogger(SchemaMigrator.class.getName());
-    private static final int CURRENT_VERSION = 2;
+    private static final int CURRENT_VERSION = 3;
 
     private SchemaMigrator() {
     }
@@ -36,10 +36,17 @@ public final class SchemaMigrator {
                 }
                 version = CURRENT_VERSION;
                 LOG.info("已创建数据库结构 v" + version);
-            } else if (version < 2) {
-                migrateToV2(connection);
-                version = 2;
-                LOG.info("数据库已升级到 v2（提醒记录改为按天去重）");
+            } else {
+                if (version < 2) {
+                    migrateToV2(connection);
+                    version = 2;
+                    LOG.info("数据库已升级到 v2（提醒记录改为按天去重）");
+                }
+                if (version < 3) {
+                    migrateToV3(connection);
+                    version = 3;
+                    LOG.info("数据库已升级到 v3（新增 AI 对话表）");
+                }
             }
             seedDefaults(connection);
             writeVersion(connection, CURRENT_VERSION);
@@ -66,6 +73,31 @@ public final class SchemaMigrator {
                 "DROP TABLE reminder_log",
                 "ALTER TABLE reminder_log_v2 RENAME TO reminder_log",
                 "CREATE INDEX IF NOT EXISTS idx_reminder_fired ON reminder_log(fired_at)"
+        };
+        for (String statement : statements) {
+            try (Statement st = connection.createStatement()) {
+                st.execute(statement);
+            }
+        }
+    }
+
+    /** v3：AI 对话与消息表。 */
+    private static void migrateToV3(Connection connection) throws SQLException {
+        String[] statements = {
+                "CREATE TABLE IF NOT EXISTS ai_conversation ("
+                        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                        + "title TEXT NOT NULL,"
+                        + "created_at TEXT NOT NULL,"
+                        + "updated_at TEXT NOT NULL)",
+                "CREATE TABLE IF NOT EXISTS ai_message ("
+                        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                        + "conversation_id INTEGER NOT NULL REFERENCES ai_conversation(id) ON DELETE CASCADE,"
+                        + "role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'tool')),"
+                        + "content TEXT,"
+                        + "tool_calls TEXT,"
+                        + "tool_call_id TEXT,"
+                        + "created_at TEXT NOT NULL)",
+                "CREATE INDEX IF NOT EXISTS idx_ai_message_conv ON ai_message(conversation_id, id)"
         };
         for (String statement : statements) {
             try (Statement st = connection.createStatement()) {

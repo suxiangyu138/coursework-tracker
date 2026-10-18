@@ -13,6 +13,7 @@ import com.coursework.tracker.model.CourseGrade;
 import com.coursework.tracker.model.PlannedReminder;
 import com.coursework.tracker.model.Urgency;
 import com.coursework.tracker.service.BusinessException;
+import com.coursework.tracker.ui.dialog.AiChatDialog;
 import com.coursework.tracker.ui.dialog.AssignmentDialog;
 import com.coursework.tracker.ui.dialog.CourseDialog;
 import com.coursework.tracker.ui.dialog.GradeDetailDialog;
@@ -258,6 +259,11 @@ public final class MainFrame extends JFrame {
         }));
         bar.add(reminder);
 
+        JMenu ai = new JMenu("AI");
+        ai.add(menuItem("AI 助手…", "control shift A", e -> AiChatDialog.show(this, context)));
+        ai.add(menuItem("AI 设置…", null, e -> openSettings()));
+        bar.add(ai);
+
         JMenu help = new JMenu("帮助");
         help.add(menuItem("关于", null, e -> showAbout()));
         bar.add(help);
@@ -317,6 +323,9 @@ public final class MainFrame extends JFrame {
         toolbar.add(searchField);
 
         toolbar.add(javax.swing.Box.createHorizontalGlue());
+        JButton aiButton = new JButton("AI 助手");
+        aiButton.addActionListener(e -> AiChatDialog.show(this, context));
+        toolbar.add(aiButton);
         JButton settings = new JButton("设置");
         settings.addActionListener(e -> openSettings());
         toolbar.add(settings);

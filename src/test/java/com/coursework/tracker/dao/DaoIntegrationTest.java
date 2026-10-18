@@ -62,9 +62,9 @@ class DaoIntegrationTest {
     void schemaCreated() {
         long tables = database.queryLong(
                 "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN "
-                        + "('course','assignment','reminder_log','setting')");
-        assertEquals(4, tables);
-        assertEquals("2", settingDao.get("schema.version", null));
+                        + "('course','assignment','reminder_log','setting','ai_conversation','ai_message')");
+        assertEquals(6, tables);
+        assertEquals("3", settingDao.get("schema.version", null));
     }
 
     @Test

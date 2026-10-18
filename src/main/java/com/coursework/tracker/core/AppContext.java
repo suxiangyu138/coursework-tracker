@@ -1,5 +1,9 @@
 package com.coursework.tracker.core;
 
+import com.coursework.tracker.ai.AiActionExecutor;
+import com.coursework.tracker.ai.AiAgentService;
+import com.coursework.tracker.ai.DeepSeekClient;
+import com.coursework.tracker.dao.AiChatDao;
 import com.coursework.tracker.dao.AssignmentDao;
 import com.coursework.tracker.dao.CourseDao;
 import com.coursework.tracker.dao.Database;
@@ -40,6 +44,8 @@ public final class AppContext implements AutoCloseable {
     private final ReminderService reminderService;
     private final DemoDataFactory demoDataFactory;
     private final BackupService backupService;
+    private final AiChatDao aiChatDao;
+    private final AiAgentService aiAgentService;
     private final AtomicBoolean closed = new AtomicBoolean();
 
     public AppContext(Database database) {
@@ -63,6 +69,9 @@ public final class AppContext implements AutoCloseable {
                 ? database.file().getParent().resolve("backup")
                 : AppPaths.dataDir().resolve("backup");
         this.backupService = new BackupService(database, courseDao, assignmentDao, settingDao, backupDir);
+        this.aiChatDao = new AiChatDao(database);
+        this.aiAgentService = new AiAgentService(new DeepSeekClient(),
+                new AiActionExecutor(courseService, assignmentService), aiChatDao);
     }
 
     public static AppContext open(Path databaseFile) {
@@ -127,6 +136,14 @@ public final class AppContext implements AutoCloseable {
 
     public BackupService backupService() {
         return backupService;
+    }
+
+    public AiChatDao aiChatDao() {
+        return aiChatDao;
+    }
+
+    public AiAgentService aiAgentService() {
+        return aiAgentService;
     }
 
     @Override

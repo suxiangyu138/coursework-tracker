@@ -22,7 +22,7 @@
 | 作者 | 苏巷雨（学号：待填） |
 | 技术栈 | Java 17 · Swing + FlatLaf · SQLite（JDBC）· JFreeChart · Maven |
 | 运行环境 | Windows 10/11 优先，Linux / macOS 可运行；JDK 17 及以上 |
-| 当前状态 | `v1.0.0` 功能实现完成，76 条自动化测试通过，`--selftest` 自检通过 |
+| 当前状态 | `v1.0.0` 功能实现完成，94 条自动化测试通过，`--selftest` 自检通过 |
 
 ---
 
@@ -77,6 +77,9 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 | 系统 | 本地持久化 | SQLite 单文件，自动建库、事务写入 |
 | | 数据备份 | JSON 全量导出/导入、CSV 作业清单、每日自动备份（保留 7 份） |
 | | 单实例运行 | 重复启动不产生两个托盘图标 |
+| AI 助手 | 自然语言对话 | 接入 DeepSeek Chat Completions，可建课程、建/改/删作业、查询作业 |
+| | 会话管理 | 历史对话相互隔离，支持新建、删除、重置上下文 |
+| | 安全执行 | 写操作先弹确认框，拒绝则不执行；只读查询自动执行 |
 
 ### P1 · 增强功能
 
@@ -201,6 +204,39 @@ javaw -Xms32m -Xmx256m -XX:+UseSerialGC -jar <项目路径>\target\coursework-tr
 
 ---
 
+## AI 助手（可选）
+
+在「设置 → AI 助手」填入 API Key、接口地址与模型名，勾选启用后，通过工具栏「AI 助手」或菜单 `AI → AI 助手…`（`Ctrl+Shift+A`）打开对话窗口。
+
+| 配置项 | 默认值 | 说明 |
+| --- | --- | --- |
+| 接口地址 | `https://api.deepseek.com` | OpenAI 兼容地址，会自动补 `/chat/completions` |
+| 模型 | `deepseek-flash` | 可按账号实际可用的模型名修改 |
+| API Key | 空 | 保存在本地数据库，界面与日志中不会回显完整 Key |
+
+**它能做什么**（自然语言示例）：
+
+| 说法 | 执行的工具 |
+| --- | --- |
+| "帮我建一门数据结构，3 学分" | `create_course` |
+| "下周五晚上 11:59 交数据库大作业，占 40%" | `create_assignment` |
+| "把操作系统实验三标记为已完成" | `update_assignment` |
+| "删掉计算机网络实验二" | `delete_assignment` |
+| "这周还有哪些作业没做？" | `list_assignments`（只读，自动执行） |
+
+**确认机制**：新增、修改、删除都会先把操作摘要弹给你确认，默认焦点在「否」，点「否」则整批不执行，AI 会转成文字说明。只读查询直接执行，不会改数据。
+
+**纯文本回复**：提示词要求模型不要使用 Markdown；界面还会再清理一层 `**`、`#`、代码围栏等标记，聊天记录里不会出现莫名其妙的符号。
+
+**数据与隐私**：
+
+- 关闭 AI 或未配置 Key 时，程序**不发起任何网络请求**，全部功能离线可用
+- 启用后，只有你在对话窗口发送的消息、相关工具参数与工具结果会发给 DeepSeek API
+- API Key 以明文存在本地 `data/coursework.db`，请不要把 `data/` 目录发给别人
+- 不做任何埋点、统计上报
+
+---
+
 ## 技术亮点（对应课程知识点）
 
 | 课程知识点 | 在本项目中的落地 |
@@ -213,7 +249,8 @@ javaw -Xms32m -Xmx256m -XX:+UseSerialGC -jar <项目路径>\target\coursework-tr
 | 图形界面 | Swing 自定义 `JTable` 渲染器（紧急度进度条、倒计时着色）、`ListCellRenderer`（课程进度条）、FlatLaf 主题 |
 | 图表绘制 | JFreeChart 柱状图封装为可复用面板，跟随浅色/深色主题 |
 | 文件与 IO | 单实例文件锁、日志文件、SQLite `VACUUM INTO` 在线快照、JSON（Gson）导出/导入、CSV（UTF-8 BOM） |
-| 测试 | JUnit 5：76 条自动化测试（含 12 条 DAO 集成测试），`@TempDir`/内存库隔离 |
+| HTTP 与 Agent | `java.net.http.HttpClient` 调用 DeepSeek，function calling 解析工具调用，确认后执行，`SwingWorker` 后台请求 |
+| 测试 | JUnit 5：94 条自动化测试（含 12 条 DAO 集成测试），`@TempDir`/内存库隔离 |
 
 ---
 
@@ -235,10 +272,11 @@ Java课程设计_作业截止提醒与进度追踪器/
 │   ├── model/                  # Assignment、Course、Countdown、Urgency、ReminderRule、CourseGrade …
 │   ├── dao/                    # Database、SchemaMigrator、CourseDao、AssignmentDao、ReminderLogDao、SettingDao
 │   ├── service/                # 作业/课程服务、提醒规划与调度、统计、成绩、设置、示例数据、备份导入导出
+│   ├── ai/                     # DeepSeek 客户端、工具定义、工具执行、Agent 编排
 │   ├── ui/                     # MainFrame、TrayController、ThemeManager、panel/、dialog/、table/
 │   └── util/                   # TimeUtils、Formatters、UrgencyCalculator、GradeCalculator
 ├── src/main/resources/db/schema.sql
-└── src/test/java/…             # 9 个测试类，76 条测试
+└── src/test/java/…             # 13 个测试类，94 条测试
 ```
 
 ---

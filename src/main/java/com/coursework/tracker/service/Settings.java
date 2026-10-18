@@ -1,5 +1,6 @@
 package com.coursework.tracker.service;
 
+import com.coursework.tracker.ai.AiConfig;
 import com.coursework.tracker.dao.SettingDao;
 import com.coursework.tracker.util.UrgencyCalculator;
 
@@ -79,6 +80,23 @@ public final class Settings {
 
     public boolean autoBackup() {
         return dao.getBoolean("backup.auto", true);
+    }
+
+    public AiConfig aiConfig() {
+        return new AiConfig(
+                dao.getBoolean("ai.enabled", false),
+                dao.get("ai.apiKey", ""),
+                dao.get("ai.baseUrl", AiConfig.DEFAULT_BASE_URL),
+                dao.get("ai.model", AiConfig.DEFAULT_MODEL));
+    }
+
+    public void setAiConfig(AiConfig config) {
+        dao.setBoolean("ai.enabled", config.enabled());
+        dao.set("ai.apiKey", config.apiKey() == null ? "" : config.apiKey().trim());
+        dao.set("ai.baseUrl", config.baseUrl() == null || config.baseUrl().isBlank()
+                ? AiConfig.DEFAULT_BASE_URL : config.baseUrl().trim());
+        dao.set("ai.model", config.model() == null || config.model().isBlank()
+                ? AiConfig.DEFAULT_MODEL : config.model().trim());
     }
 
     /** 当前时刻是否落在静音时段（支持 23:00–07:00 这种跨天区间）。 */

@@ -31,7 +31,10 @@ class SchemaMigratorTest {
 
             SchemaMigrator.migrate(database);
 
-            assertEquals("2", new SettingDao(database).get("schema.version", ""));
+            assertEquals("3", new SettingDao(database).get("schema.version", ""));
+            assertEquals(2, database.queryLong(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' "
+                            + "AND name IN ('ai_conversation','ai_message')"));
             assertEquals(1, database.queryLong(
                     "SELECT COUNT(*) FROM reminder_log WHERE fired_date = '2026-10-16'"));
 

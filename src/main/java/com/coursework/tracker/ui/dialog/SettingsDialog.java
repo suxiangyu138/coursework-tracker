@@ -1,10 +1,11 @@
 package com.coursework.tracker.ui.dialog;
 
-import com.coursework.tracker.ui.AppIcon;
-
+import com.coursework.tracker.ai.AiConfig;
+import com.coursework.tracker.ai.DeepSeekClient;
 import com.coursework.tracker.core.AppContext;
 import com.coursework.tracker.core.AutoStartManager;
 import com.coursework.tracker.service.Settings;
+import com.coursework.tracker.ui.AppIcon;
 import com.coursework.tracker.ui.ThemeManager;
 
 import javax.swing.BorderFactory;
@@ -14,9 +15,11 @@ import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingWorker;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -46,6 +49,13 @@ public final class SettingsDialog extends JDialog {
     private final JSpinner horizonSpinner = new JSpinner(new SpinnerNumberModel(168, 24, 720, 24));
     private final JComboBox<String> themeCombo = new JComboBox<>(new String[]{"浅色", "深色"});
     private final JLabel errorLabel = new JLabel(" ");
+
+    private final JCheckBox aiEnabledCheck = new JCheckBox("启用 AI 助手（DeepSeek）");
+    private final JPasswordField aiKeyField = new JPasswordField(30);
+    private final JTextField aiBaseField = new JTextField(30);
+    private final JTextField aiModelField = new JTextField(24);
+    private final JButton aiTestButton = new JButton("测试连接");
+    private final JLabel aiStatusLabel = new JLabel(" ");
 
     private SettingsDialog(Window owner, AppContext context, Runnable onThemeChanged) {
         super(owner, "设置", ModalityType.APPLICATION_MODAL);
@@ -107,6 +117,52 @@ public final class SettingsDialog extends JDialog {
         gbc.gridx = 1;
         form.add(themeCombo, gbc);
 
+        // ----- AI 助手 -----
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.gridwidth = 2;
+        JLabel aiTitle = new JLabel("AI 助手（DeepSeek）");
+        aiTitle.setFont(aiTitle.getFont().deriveFont(Font.BOLD));
+        form.add(aiTitle, gbc);
+
+        gbc.gridy++;
+        form.add(aiEnabledCheck, gbc);
+
+        gbc.gridy++;
+        gbc.gridwidth = 1;
+        form.add(new JLabel("API Key"), gbc);
+        gbc.gridx = 1;
+        form.add(aiKeyField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        form.add(new JLabel("接口地址"), gbc);
+        gbc.gridx = 1;
+        form.add(aiBaseField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        form.add(new JLabel("模型"), gbc);
+        gbc.gridx = 1;
+        form.add(aiModelField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.gridwidth = 2;
+        JPanel aiTestPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        aiTestPanel.setOpaque(false);
+        aiStatusLabel.setForeground(new java.awt.Color(0x6B7280));
+        aiTestPanel.add(aiTestButton);
+        aiTestPanel.add(aiStatusLabel);
+        form.add(aiTestPanel, gbc);
+        aiTestButton.addActionListener(e -> testAiConnection());
+
+        gbc.gridy++;
+        JLabel aiHint = new JLabel("API Key 保存在本地数据库，请勿分享 data 目录");
+        aiHint.setForeground(new java.awt.Color(0x6B7280));
+        aiHint.setFont(aiHint.getFont().deriveFont(Font.PLAIN, 12f));
+        form.add(aiHint, gbc);
+
         errorLabel.setForeground(new java.awt.Color(0xC62828));
         errorLabel.setFont(errorLabel.getFont().deriveFont(Font.PLAIN, 12f));
         gbc.gridx = 0;
@@ -138,13 +194,25 @@ public final class SettingsDialog extends JDialog {
         quietEndField.setText(TIME.format(settings.quietEnd()));
         horizonSpinner.setValue((int) settings.horizonHours());
         themeCombo.setSelectedIndex(ThemeManager.isDark() ? 1 : 0);
+
+        AiConfig ai = settings.aiConfig();
+        aiEnabledCheck.setSelected(ai.enabled());
+        aiKeyField.setText(ai.apiKey());
+        aiBaseField.setText(ai.baseUrl());
+        aiModelField.setText(ai.model());
     }
 
     private void save() {
         try {
+            AiConfig ai = readAiConfig();
+            if (ai.enabled() && ai.apiKey().isBlank()) {
+                errorLabel.setText("启用 AI 助手前请填写 API Key");
+                return;
+            }
             LocalTime start = LocalTime.parse(quietStartField.getText().trim(), TIME);
             LocalTime end = LocalTime.parse(quietEndField.getText().trim(), TIME);
             Settings settings = context.settings();
+            settings.setAiConfig(ai);
             settings.setRemindersEnabled(reminderCheck.isSelected());
             settings.setQuietWindow(start, end);
             settings.setHorizonHours(((Number) horizonSpinner.getValue()).doubleValue());
@@ -177,5 +245,48 @@ public final class SettingsDialog extends JDialog {
         } catch (IOException e) {
             errorLabel.setText("开机自启设置失败：" + e.getMessage());
         }
+    }
+
+    private AiConfig readAiConfig() {
+        return new AiConfig(
+                aiEnabledCheck.isSelected(),
+                new String(aiKeyField.getPassword()).trim(),
+                aiBaseField.getText().trim(),
+                aiModelField.getText().trim());
+    }
+
+    /** 用当前填写的配置发一条极短请求，验证 Key、地址与模型名。 */
+    private void testAiConnection() {
+        AiConfig current = readAiConfig();
+        if (current.apiKey().isBlank()) {
+            aiStatusLabel.setText("请先填写 API Key");
+            return;
+        }
+        AiConfig test = new AiConfig(true, current.apiKey(), current.baseUrl(), current.model());
+        aiTestButton.setEnabled(false);
+        aiStatusLabel.setForeground(new java.awt.Color(0x6B7280));
+        aiStatusLabel.setText("正在连接…");
+
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                new DeepSeekClient().testConnection(test);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                aiTestButton.setEnabled(true);
+                try {
+                    get();
+                    aiStatusLabel.setForeground(new java.awt.Color(0x2E7D32));
+                    aiStatusLabel.setText("连接成功");
+                } catch (Exception e) {
+                    Throwable cause = e.getCause() == null ? e : e.getCause();
+                    aiStatusLabel.setForeground(new java.awt.Color(0xC62828));
+                    aiStatusLabel.setText("连接失败：" + cause.getMessage());
+                }
+            }
+        }.execute();
     }
 }

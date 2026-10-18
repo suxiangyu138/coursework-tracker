@@ -47,3 +47,22 @@ CREATE INDEX IF NOT EXISTS idx_assignment_due    ON assignment(due_at);
 CREATE INDEX IF NOT EXISTS idx_assignment_course ON assignment(course_id);
 CREATE INDEX IF NOT EXISTS idx_assignment_status ON assignment(status);
 CREATE INDEX IF NOT EXISTS idx_reminder_fired    ON reminder_log(fired_at);
+
+CREATE TABLE IF NOT EXISTS ai_conversation (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    title      TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ai_message (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL REFERENCES ai_conversation(id) ON DELETE CASCADE,
+    role            TEXT    NOT NULL CHECK (role IN ('user', 'assistant', 'tool')),
+    content         TEXT,
+    tool_calls      TEXT,
+    tool_call_id    TEXT,
+    created_at      TEXT    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_message_conv ON ai_message(conversation_id, id);
