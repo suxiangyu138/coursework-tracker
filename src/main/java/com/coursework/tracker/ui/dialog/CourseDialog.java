@@ -1,5 +1,7 @@
 package com.coursework.tracker.ui.dialog;
 
+import com.coursework.tracker.ui.AppIcon;
+
 import com.coursework.tracker.core.AppContext;
 import com.coursework.tracker.model.Course;
 import com.coursework.tracker.service.BusinessException;
@@ -48,6 +50,7 @@ public final class CourseDialog extends JDialog {
         buildUi();
         pack();
         setLocationRelativeTo(owner);
+        AppIcon.applyTo(this);
     }
 
     private void buildUi() {

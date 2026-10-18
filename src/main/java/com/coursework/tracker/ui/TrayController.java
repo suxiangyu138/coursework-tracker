@@ -10,22 +10,16 @@ import javax.swing.SwingUtilities;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import java.awt.AWTException;
-import java.awt.BasicStroke;
-import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
-import java.awt.Image;
 import java.awt.MouseInfo;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.RenderingHints;
 import java.awt.SystemTray;
 import java.awt.Toolkit;
 import java.awt.TrayIcon;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.image.BufferedImage;
 import java.time.Duration;
 import java.util.List;
 import java.util.logging.Level;
@@ -62,7 +56,7 @@ public final class TrayController {
             return false;
         }
         try {
-            trayIcon = new TrayIcon(createIcon(), "作业哨兵");
+            trayIcon = new TrayIcon(AppIcon.trayIcon(), "作业哨兵");
             trayIcon.setImageAutoSize(true);
             trayIcon.addMouseListener(new MouseAdapter() {
                 @Override
@@ -242,22 +236,5 @@ public final class TrayController {
             trayIcon = null;
             installed = false;
         }
-    }
-
-    /** 画一个时钟图标：蓝底圆 + 白色指针。 */
-    private static Image createIcon() {
-        int size = 32;
-        BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = image.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setColor(new Color(0x2563EB));
-        g.fillOval(2, 2, size - 4, size - 4);
-        g.setColor(Color.WHITE);
-        g.setStroke(new BasicStroke(2.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g.drawOval(5, 5, size - 10, size - 10);
-        g.drawLine(size / 2, size / 2, size / 2, 10);
-        g.drawLine(size / 2, size / 2, size - 10, size / 2 + 4);
-        g.dispose();
-        return image;
     }
 }

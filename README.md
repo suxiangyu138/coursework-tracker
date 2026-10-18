@@ -1,5 +1,7 @@
 # 作业哨兵 · CourseWorkTracker
 
+<img src="docs/assets/icon-256.png" width="88" align="right" alt="作业哨兵图标">
+
 [![CI](https://github.com/suxiangyu138/coursework-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/suxiangyu138/coursework-tracker/actions/workflows/ci.yml)
 [![GitHub](https://img.shields.io/badge/GitHub-coursework--tracker-181717?logo=github)](https://github.com/suxiangyu138/coursework-tracker)
 [![Gitee](https://img.shields.io/badge/Gitee-coursework--tracker-C71D23?logo=gitee)](https://gitee.com/suxiangyu138/coursework-tracker)

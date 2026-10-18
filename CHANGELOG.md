@@ -14,6 +14,8 @@
 - GitHub Issue 表单（Bug 报告 / 功能建议）与 Pull Request 模板
 - README 增加许可证徽章、仓库规范与「参与贡献」章节
 - GitHub `main` 分支保护：要求 CI「Build & Test (JDK 17)」通过
+- 全新应用图标：渐变圆角底 + 时钟环 + 完成勾 + 琥珀提醒点，窗口/任务栏/托盘/对话框统一（Java2D 绘制，9 种尺寸）
+- README 标题增加图标展示，docs/assets 提供 64/256px PNG
 
 ### 修复
 

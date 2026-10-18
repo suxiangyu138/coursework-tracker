@@ -1,5 +1,7 @@
 package com.coursework.tracker.ui.dialog;
 
+import com.coursework.tracker.ui.AppIcon;
+
 import com.coursework.tracker.core.AppContext;
 import com.coursework.tracker.model.ReminderHistoryItem;
 import com.coursework.tracker.util.Formatters;
@@ -65,6 +67,7 @@ public final class ReminderCenterDialog extends JDialog {
         add(bottom, BorderLayout.SOUTH);
         setSize(760, 460);
         setLocationRelativeTo(owner);
+        AppIcon.applyTo(this);
         reload();
     }
 

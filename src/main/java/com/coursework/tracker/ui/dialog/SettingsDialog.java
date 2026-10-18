@@ -1,5 +1,7 @@
 package com.coursework.tracker.ui.dialog;
 
+import com.coursework.tracker.ui.AppIcon;
+
 import com.coursework.tracker.core.AppContext;
 import com.coursework.tracker.core.AutoStartManager;
 import com.coursework.tracker.service.Settings;
@@ -53,6 +55,7 @@ public final class SettingsDialog extends JDialog {
         loadValues();
         pack();
         setLocationRelativeTo(owner);
+        AppIcon.applyTo(this);
     }
 
     public static void show(Window owner, AppContext context, Runnable onThemeChanged) {

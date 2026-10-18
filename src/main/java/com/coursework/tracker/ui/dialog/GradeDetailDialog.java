@@ -1,5 +1,7 @@
 package com.coursework.tracker.ui.dialog;
 
+import com.coursework.tracker.ui.AppIcon;
+
 import com.coursework.tracker.core.AppContext;
 import com.coursework.tracker.model.Assignment;
 import com.coursework.tracker.model.Course;
@@ -81,6 +83,7 @@ public final class GradeDetailDialog extends JDialog {
         add(buttons, BorderLayout.SOUTH);
         setSize(640, 520);
         setLocationRelativeTo(owner);
+        AppIcon.applyTo(this);
     }
 
     public static void show(Window owner, AppContext context, Course course) {

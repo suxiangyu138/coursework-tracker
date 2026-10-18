@@ -133,6 +133,7 @@ public final class MainFrame extends JFrame {
         super("作业哨兵 · CourseWorkTracker");
         this.context = context;
         this.dashboard = new DashboardPanel(context);
+        AppIcon.applyTo(this);
         this.table = new JTable(tableModel) {
             @Override
             public String getToolTipText(MouseEvent event) {
