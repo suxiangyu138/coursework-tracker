@@ -25,7 +25,7 @@
 | 定位 | 个人项目 · 持续维护的桌面效率工具 |
 | 技术栈 | Java 17 · Swing + FlatLaf · SQLite（JDBC）· JFreeChart · Maven |
 | 运行环境 | Windows 10/11 优先，Linux / macOS 可运行；JDK 17 及以上 |
-| 当前版本 | `v1.2.0`（本地更新版）：课程学期分组与删除、主界面常驻 AI 助手、AI 规划与风险分析 |
+| 当前版本 | `v1.2.0` 正式发行版：课程学期分组与删除、主界面常驻 AI 助手、AI 规划与风险分析 |
 | 质量 | 117 条自动化测试通过，`--selftest` 自检通过 |
 
 ---
@@ -39,12 +39,11 @@
 
 ## 下载
 
-- GitHub Releases：<https://github.com/suxiangyu138/coursework-tracker/releases>
-- Gitee Releases：<https://gitee.com/suxiangyu138/coursework-tracker/releases>
-- **Windows 免安装版（推荐）**：`CourseWorkTracker-1.1.0-windows-x64.zip`，解压后双击 `CourseWorkTracker.exe`，内置 Java 运行时，不需要安装 JDK
-- **跨平台 jar 版**：`CourseWorkTracker-1.1.0.zip`，包含 `coursework-tracker.jar`、`启动作业哨兵.bat`、使用说明与 `.ico`；机器已装 JDK 17 时可用
+- GitHub Releases：<https://github.com/suxiangyu138/coursework-tracker/releases/tag/v1.2.0>
+- Gitee Releases：<https://gitee.com/suxiangyu138/coursework-tracker/releases/tag/v1.2.0>
+- **Windows 免安装版（推荐）**：`CourseWorkTracker-1.2.0-windows-x64.zip`，解压后双击 `CourseWorkTracker.exe`，内置 Java 运行时，不需要安装 JDK
+- **跨平台 jar 版**：`CourseWorkTracker-1.2.0.zip`，包含 `coursework-tracker.jar`、`启动作业哨兵.bat`、使用说明与 `.ico`；机器已装 JDK 17 时可用
 - 两个包都不包含 `data/`，不会携带任何本机数据
-- 公开 Release 仍为 v1.1.0；v1.2.0 是本地更新版，安装包尚未重新发布
 
 ```bash
 git clone https://github.com/suxiangyu138/coursework-tracker.git
@@ -64,6 +63,16 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 4. **不知道期末要考多少分**：平时分已经拿了多少、期末考多少才能到 90，没人替你算。
 
 作业哨兵把「倒计时 + 紧急度排序 + 完成度统计 + 成绩预估」四件事串成一个闭环，常驻托盘，不占任务栏。
+
+---
+
+## 1.2.0 更新摘要
+
+- **课程学期分类**：课程按「2026–2027 秋 / 2027–2028 春」分组，点击学期标题即可筛选该学期作业；老数据按创建时间自动推断学期。
+- **课程可编辑、可删除**：左侧课程列表底部新增「新建课程 / 编辑 / 删除」，支持右键、双击、F2、Delete；删除前自动备份，确认框会显示将级联删除的作业数量。
+- **AI 搬到主界面**：右侧常驻 AI 面板，自动分析逾期、今日/7 天截止、剩余工作量、权重完成度与最高优先级任务；支持「今日计划」「本周风险」。
+- **AI 更懂你的课程**：新增课程查询/修改/删除工具；课程名按空格、全半角、大小写、连接符归一化，相似课程先给候选，不再重复创建。
+- **数据更安全**：数据库 v4 只增加学期列，不重建表；JSON 备份升级到 v2，CSV 增加学期列。
 
 ---
 
@@ -154,7 +163,7 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 
 ### Windows 免安装版
 
-下载 `CourseWorkTracker-1.1.0-windows-x64.zip` 解压，双击 `CourseWorkTracker.exe` 即可。
+下载 `CourseWorkTracker-1.2.0-windows-x64.zip` 解压，双击 `CourseWorkTracker.exe` 即可。
 内置 Java 运行时，目标电脑不需要安装 JDK；数据在 `app/data`，移动整个文件夹即可迁移。
 
 重新构建 exe：
@@ -246,7 +255,13 @@ javaw -Xms32m -Xmx256m -XX:+UseSerialGC -jar <项目路径>\dist\coursework-trac
 
 ## AI 助手（可选）
 
-在「设置 → AI 助手」填入 API Key、接口地址与模型名，勾选启用后，通过工具栏「AI 助手」或菜单 `AI → AI 助手…`（`Ctrl+Shift+A`）打开对话窗口。
+在「设置 → AI 助手」填入 API Key、接口地址与模型名，勾选启用后，即可使用主界面右侧的常驻 AI 面板；也可以从菜单 `AI → 完整对话…`（`Ctrl+Shift+A`）打开完整对话窗口管理历史会话。
+
+**主界面 AI 面板**：
+
+- 顶部自动显示本地任务洞察：未完成/逾期/今日/7 天、剩余工作量、权重完成度、最高优先级任务。
+- 可直接输入问题，按 `Enter` 发送；「今日计划」生成具体时间表，「本周风险」分析逾期与权重风险。
+- 面板可「收起」，从工具栏「AI 面板」重新展开；离线时本地洞察仍可用，只是对话与一键规划需要配置 API Key。
 
 | 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -258,12 +273,16 @@ javaw -Xms32m -Xmx256m -XX:+UseSerialGC -jar <项目路径>\dist\coursework-trac
 
 | 说法 | 执行的工具 |
 | --- | --- |
-| "帮我建一门数据结构，3 学分" | `create_course` |
+| "帮我建一门数据结构，3 学分" | `create_course`（同名/相似课程会先复用或给候选） |
+| "我有哪些课？操作系统是哪门？" | `list_courses`（只读，自动执行） |
+| "把操作系统改到下学期，学分改成 4" | `update_course` |
+| "删掉那门重复的操作系统（下）" | `delete_course`（确认 + 删除前自动备份） |
 | "下周五晚上 11:59 交数据库大作业，占 40%" | `create_assignment` |
 | "把操作系统实验三标记为已完成" | `update_assignment` |
 | "删掉计算机网络实验二" | `delete_assignment` |
 | "这周还有哪些作业没做？" | `list_assignments`（只读，自动执行） |
 | "把这周未完成的作业统一推迟三天" | `batch_update_assignments`（批量，确认后执行） |
+| "今天先做什么？帮我安排今晚" | 不调用写工具，基于任务快照给出时间表 |
 
 **执行计划预览**：涉及写操作时，会先弹出本轮完整步骤（查询、新建、修改、批量），默认焦点在「否」；点「否」整批都不执行。确认框会列出“改成什么”，例如“截止改为 10-30 23:59，权重改为 15%”，方便核对 Agent 是否理解正确。
 
@@ -273,7 +292,7 @@ javaw -Xms32m -Xmx256m -XX:+UseSerialGC -jar <项目路径>\dist\coursework-trac
 
 **纯文本回复**：提示词要求模型不要使用 Markdown；界面还会再清理一层 `**`、`#`、代码围栏等标记，聊天记录里不会出现莫名其妙的符号。
 
-**上下文**：每个对话保留最近 40 条消息；单条长文本会原样发送，极大的文本仍可能触达模型上下文上限。
+**上下文**：每个对话保留最近 60 条消息；单条长文本会原样发送，极大的文本仍可能触达模型上下文上限。
 
 ## 关于与作者
 
@@ -368,6 +387,7 @@ coursework-tracker/
 - [x] **M5 统计与图表**：完成度卡片、JFreeChart 图表、按课程统计
 - [x] **M6 成绩预估**：加权得分、总评预估、目标分反推、GPA
 - [x] **M7 打磨交付**：主题、异常兜底、README 截图、打包、自检
+- [x] **M8 v1.2.0 增量**：课程学期分组、课程编辑/删除、主界面 AI 面板、AI 课程工具与去重、117 条测试
 
 ---
 

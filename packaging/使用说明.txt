@@ -4,6 +4,8 @@
 邮箱：suxiangyu_dev@foxmail.com
 GitHub：https://github.com/suxiangyu138/coursework-tracker
 Gitee：https://gitee.com/suxiangyu138/coursework-tracker
+下载：https://github.com/suxiangyu138/coursework-tracker/releases/tag/v1.2.0
+      https://gitee.com/suxiangyu138/coursework-tracker/releases/tag/v1.2.0
 
 一、运行
 1. 安装 Java 17 或更高版本。
