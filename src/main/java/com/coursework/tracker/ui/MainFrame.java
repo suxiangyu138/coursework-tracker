@@ -2,6 +2,7 @@ package com.coursework.tracker.ui;
 
 import com.coursework.tracker.core.AppContext;
 import com.coursework.tracker.core.AppEvents;
+import com.coursework.tracker.core.AppInfo;
 import com.coursework.tracker.core.AppPaths;
 import com.coursework.tracker.core.ClockProvider;
 import com.coursework.tracker.model.Assignment;
@@ -13,12 +14,14 @@ import com.coursework.tracker.model.CourseGrade;
 import com.coursework.tracker.model.PlannedReminder;
 import com.coursework.tracker.model.Urgency;
 import com.coursework.tracker.service.BusinessException;
+import com.coursework.tracker.ui.dialog.AboutDialog;
 import com.coursework.tracker.ui.dialog.AiChatDialog;
 import com.coursework.tracker.ui.dialog.AssignmentDialog;
 import com.coursework.tracker.ui.dialog.CourseDialog;
 import com.coursework.tracker.ui.dialog.GradeDetailDialog;
 import com.coursework.tracker.ui.dialog.ReminderCenterDialog;
 import com.coursework.tracker.ui.dialog.SettingsDialog;
+import com.coursework.tracker.ui.dialog.UpdateDialog;
 import com.coursework.tracker.ui.panel.CourseListPanel;
 import com.coursework.tracker.ui.panel.DashboardPanel;
 import com.coursework.tracker.ui.table.AssignmentTableModel;
@@ -265,7 +268,8 @@ public final class MainFrame extends JFrame {
         bar.add(ai);
 
         JMenu help = new JMenu("帮助");
-        help.add(menuItem("关于", null, e -> showAbout()));
+        help.add(menuItem("关于与作者…", "F1", e -> AboutDialog.show(this, context)));
+        help.add(menuItem("检查更新…", "control U", e -> UpdateDialog.show(this, context)));
         bar.add(help);
         return bar;
     }
@@ -594,7 +598,7 @@ public final class MainFrame extends JFrame {
         int overdue = context.statisticsService().overdueCount(assignments, ClockProvider.now());
         statusLeft.setText(String.format("共 %d 条作业 · 已完成 %d · 逾期 %d · 权重完成度 %s",
                 stats.total(), stats.completed(), overdue, stats.weightRateText()));
-        statusRight.setText("数据：" + AppPaths.databaseFile() + "  ·  v" + VERSION);
+        statusRight.setText("数据：" + AppPaths.databaseFile() + "  ·  v" + AppInfo.version());
     }
 
     private void updateTrayTooltip(CompletionStats stats) {
@@ -866,12 +870,7 @@ public final class MainFrame extends JFrame {
     }
 
     private void showAbout() {
-        JOptionPane.showMessageDialog(this,
-                "作业哨兵 · CourseWorkTracker\n版本 " + VERSION + "\n\n"
-                        + "课程作业截止日提醒与进度追踪器\n"
-                        + "Java 17 · Swing + FlatLaf · SQLite · JFreeChart\n\n"
-                        + "数据文件：\n" + AppPaths.databaseFile(),
-                "关于", JOptionPane.INFORMATION_MESSAGE);
+        AboutDialog.show(this, context);
     }
 
     private String buildTooltip(MouseEvent event) {

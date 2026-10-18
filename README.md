@@ -13,6 +13,8 @@
 > 一学期十几门课，作业截止日散落在雨课堂、学习通、班级群和老师的口头通知里。
 > 作业哨兵把它们收进一个常驻桌面的小工具：**还剩几天、先做哪个、做完多少、期末要考多少分**。
 
+**作者**：苏巷雨（suxiangyu） · 独立开发者 · [suxiangyu_dev@foxmail.com](mailto:suxiangyu_dev@foxmail.com) · [GitHub](https://github.com/suxiangyu138/coursework-tracker) · [Gitee](https://gitee.com/suxiangyu138/coursework-tracker)
+
 ---
 
 ## 项目信息
@@ -24,7 +26,7 @@
 | 作者 | 苏巷雨（学号：待填） |
 | 技术栈 | Java 17 · Swing + FlatLaf · SQLite（JDBC）· JFreeChart · Maven |
 | 运行环境 | Windows 10/11 优先，Linux / macOS 可运行；JDK 17 及以上 |
-| 当前状态 | `v1.0.0` 功能实现完成，96 条自动化测试通过，`--selftest` 自检通过 |
+| 当前状态 | `v1.1.0` 正式版：AI 助手、批量操作、关于/作者页、安全更新，96 条自动化测试通过 |
 
 ---
 
@@ -79,6 +81,8 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 | 系统 | 本地持久化 | SQLite 单文件，自动建库、事务写入 |
 | | 数据备份 | JSON 全量导出/导入、CSV 作业清单、每日自动备份（保留 7 份） |
 | | 单实例运行 | 重复启动不产生两个托盘图标 |
+| | 关于与作者 | 产品版本、作者联系方式、运行环境与数据目录 |
+| | 安全更新 | 选择新版本 jar，备份数据库后只替换程序，data 不丢 |
 | AI 助手 | 自然语言对话 | 接入 DeepSeek Chat Completions，可建课程、建/改/删作业、查询作业 |
 | | 会话管理 | 历史对话相互隔离，支持新建、删除、重置上下文 |
 | | 安全执行 | 写操作先弹确认框，拒绝则不执行；只读查询自动执行 |
@@ -107,6 +111,8 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 ![新建 / 编辑作业对话框](docs/assets/dialog-assignment.png)
 
 ![提醒中心（历史提醒）](docs/assets/reminder-center.png)
+
+![关于与作者](docs/assets/about.png)
 
 界面特点：
 
@@ -192,7 +198,7 @@ java -jar dist/coursework-tracker.jar --autostart=off
 写入的启动命令：
 
 ```text
-javaw -Xms32m -Xmx256m -XX:+UseSerialGC -jar <项目路径>\target\coursework-tracker-1.0.0.jar --minimized
+javaw -Xms32m -Xmx256m -XX:+UseSerialGC -jar <项目路径>\dist\coursework-tracker.jar --minimized
 ```
 
 ### 手动启动
@@ -238,6 +244,22 @@ javaw -Xms32m -Xmx256m -XX:+UseSerialGC -jar <项目路径>\target\coursework-tr
 **纯文本回复**：提示词要求模型不要使用 Markdown；界面还会再清理一层 `**`、`#`、代码围栏等标记，聊天记录里不会出现莫名其妙的符号。
 
 **上下文**：每个对话保留最近 40 条消息；单条长文本会原样发送，极大的文本仍可能触达模型上下文上限。
+
+## 关于与作者
+
+- 作者：苏巷雨（suxiangyu），独立开发者，持续迭代这个产品
+- 邮箱：suxiangyu_dev@foxmail.com
+- GitHub / Gitee：见关于页，点击可直接打开
+- 入口：`帮助 → 关于与作者…`（F1）
+
+## 更新
+
+`帮助 → 检查更新…`（Ctrl+U）选择新版本 jar：
+
+- 更新前自动备份数据库
+- 旧版程序保留为 `update-backup.jar`
+- 只替换 jar，`data/` 完全不动，更新后自动重启
+- 所有作业、成绩、AI 配置都会保留
 
 **数据与隐私**：
 

@@ -6,7 +6,7 @@
 
     <groupId>com.coursework</groupId>
     <artifactId>coursework-tracker</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <packaging>jar</packaging>
 
     <name>CourseWorkTracker</name>
@@ -100,6 +100,11 @@
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>com.coursework.tracker.App</mainClass>
+                                    <manifestEntries>
+                                        <Implementation-Title>CourseWorkTracker</Implementation-Title>
+                                        <Implementation-Version>${project.version}</Implementation-Version>
+                                        <Implementation-Vendor>苏巷雨</Implementation-Vendor>
+                                    </manifestEntries>
                                 </transformer>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
@@ -136,6 +141,12 @@
                                 <copy file="${project.build.directory}/${project.build.finalName}.jar"
                                       tofile="${project.basedir}/dist/coursework-tracker.jar"
                                       overwrite="true"/>
+                                <copy file="${project.basedir}/packaging/启动作业哨兵.bat"
+                                      todir="${project.basedir}/dist" overwrite="true"/>
+                                <copy file="${project.basedir}/packaging/使用说明.txt"
+                                      todir="${project.basedir}/dist" overwrite="true"/>
+                                <copy file="${project.basedir}/packaging/coursework-tracker.ico"
+                                      todir="${project.basedir}/dist" overwrite="true"/>
                             </target>
                         </configuration>
                     </execution>

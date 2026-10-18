@@ -108,6 +108,22 @@ public final class AppPaths {
         return dataDir().resolve("coursework.db");
     }
 
+    /** 当前运行的 jar 文件；开发态（target/classes）返回 null。 */
+    public static Path jarFile() {
+        try {
+            CodeSource source = AppPaths.class.getProtectionDomain().getCodeSource();
+            if (source != null) {
+                Path location = Paths.get(source.getLocation().toURI());
+                if (Files.isRegularFile(location)) {
+                    return location.toAbsolutePath().normalize();
+                }
+            }
+        } catch (URISyntaxException | RuntimeException e) {
+            LOG.warning("无法定位当前 jar: " + e.getMessage());
+        }
+        return null;
+    }
+
     public static Path logFile() {
         return logDir().resolve("app.log");
     }

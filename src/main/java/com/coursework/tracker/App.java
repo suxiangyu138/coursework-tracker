@@ -8,6 +8,8 @@ import com.coursework.tracker.core.LoggingSetup;
 import com.coursework.tracker.core.SingleInstanceGuard;
 import com.coursework.tracker.ui.MainFrame;
 import com.coursework.tracker.ui.ThemeManager;
+import com.coursework.tracker.ui.dialog.AboutDialog;
+import com.coursework.tracker.ui.dialog.UpdateDialog;
 
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
@@ -118,6 +120,11 @@ public final class App {
             context.reminderService().start();
             if (!hiddenToTray) {
                 frame.firstRunHint();
+            }
+            if (Arrays.asList(args).contains("--about")) {
+                AboutDialog.show(frame, context);
+            } else if (Arrays.asList(args).contains("--update")) {
+                UpdateDialog.show(frame, context);
             }
         });
 
