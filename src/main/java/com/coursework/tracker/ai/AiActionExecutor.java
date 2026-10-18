@@ -44,11 +44,10 @@ public final class AiActionExecutor {
                 case AiTools.CREATE_COURSE -> "新建课程：" + text(args, "name")
                         + "（" + number(args, "credit", 3) + " 学分）";
                 case AiTools.CREATE_ASSIGNMENT -> "新建作业：" + text(args, "course") + " · "
-                        + text(args, "title") + "，截止 " + text(args, "dueAt")
+                        + text(args, "title") + "，截止 " + formatDueText(text(args, "dueAt"))
                         + "，权重 " + number(args, "weight", 0) + "%";
-                case AiTools.UPDATE_ASSIGNMENT -> "修改作业：" + text(args, "title")
-                        + "（" + changedFields(args) + "）";
-                case AiTools.DELETE_ASSIGNMENT -> "删除作业：" + text(args, "title");
+                case AiTools.UPDATE_ASSIGNMENT -> "修改作业：" + label(args) + " → " + updateDetails(args);
+                case AiTools.DELETE_ASSIGNMENT -> "删除作业：" + label(args);
                 default -> call.name();
             };
         } catch (AiException | RuntimeException e) {
@@ -293,14 +292,65 @@ public final class AiActionExecutor {
         }
     }
 
-    private static String changedFields(JsonObject args) {
-        List<String> fields = new ArrayList<>();
-        for (String field : new String[]{"newTitle", "dueAt", "weight", "estimatedMinutes",
-                "status", "score", "notes"}) {
-            if (args.has(field) && !args.get(field).isJsonNull()) {
-                fields.add(field);
-            }
+    /** 确认框里的定位信息：有课程就带上课程名。 */
+    private static String label(JsonObject args) {
+        String course = optionalText(args, "course");
+        String title = text(args, "title");
+        return course == null || course.isBlank() ? title : course + " · " + title;
+    }
+
+    /** 确认框里列出"改成什么"，而不是只列字段名，方便用户判断 Agent 是否理解正确。 */
+    private static String updateDetails(JsonObject args) {
+        List<String> parts = new ArrayList<>();
+        if (args.has("newTitle") && !args.get("newTitle").isJsonNull()) {
+            parts.add("标题改为 " + args.get("newTitle").getAsString());
         }
-        return fields.isEmpty() ? "未指定字段" : String.join(", ", fields);
+        if (args.has("dueAt") && !args.get("dueAt").isJsonNull()) {
+            parts.add("截止改为 " + formatDueText(args.get("dueAt").getAsString()));
+        }
+        if (args.has("weight") && !args.get("weight").isJsonNull()) {
+            parts.add("权重改为 " + formatNumber(args.get("weight")) + "%");
+        }
+        if (args.has("estimatedMinutes") && !args.get("estimatedMinutes").isJsonNull()) {
+            parts.add("预计耗时改为 " + args.get("estimatedMinutes").getAsInt() + " 分钟");
+        }
+        if (args.has("status") && !args.get("status").isJsonNull()) {
+            parts.add("状态改为 " + statusLabel(args.get("status").getAsString()));
+        }
+        if (args.has("score") && !args.get("score").isJsonNull()) {
+            parts.add("得分改为 " + formatNumber(args.get("score")));
+        }
+        if (args.has("notes") && !args.get("notes").isJsonNull()) {
+            parts.add("备注改为 " + truncate(args.get("notes").getAsString(), 24));
+        }
+        return parts.isEmpty() ? "未指定字段" : String.join("，", parts);
+    }
+
+    private static String formatDueText(String value) {
+        try {
+            return Formatters.display(Formatters.parseUserDateTime(value));
+        } catch (RuntimeException e) {
+            return value;
+        }
+    }
+
+    private static String statusLabel(String value) {
+        try {
+            return AssignmentStatus.valueOf(value.trim().toUpperCase()).label();
+        } catch (RuntimeException e) {
+            return value;
+        }
+    }
+
+    private static String formatNumber(JsonElement element) {
+        double value = element.getAsDouble();
+        if (Math.abs(value - Math.rint(value)) < 0.0001) {
+            return String.valueOf((long) value);
+        }
+        return String.format(java.util.Locale.ROOT, "%.1f", value);
+    }
+
+    private static String truncate(String value, int limit) {
+        return value.length() <= limit ? value : value.substring(0, limit) + "…";
     }
 }

@@ -99,6 +99,14 @@ class AiActionExecutorTest {
         assertTrue(text.contains("新建作业"));
         assertTrue(text.contains("操作系统"));
         assertTrue(text.contains("实验三"));
+
+        String update = executor.preview(new DeepSeekClient.ToolCall("2", AiTools.UPDATE_ASSIGNMENT,
+                "{\"course\":\"操作系统\",\"title\":\"实验三\",\"dueAt\":\"2026-10-30 23:59\","
+                        + "\"weight\":15,\"status\":\"DOING\"}"));
+        assertTrue(update.contains("操作系统 · 实验三"));
+        assertTrue(update.contains("截止改为"));
+        assertTrue(update.contains("权重改为 15%"));
+        assertTrue(update.contains("进行中"));
     }
 
     @Test
