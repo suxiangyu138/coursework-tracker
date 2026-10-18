@@ -2,11 +2,13 @@
 
 <img src="docs/assets/icon-256.png" width="88" align="right" alt="作业哨兵图标">
 
-[![CI](https://github.com/suxiangyu138/coursework-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/suxiangyu138/coursework-tracker/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)](https://github.com/suxiangyu138/coursework-tracker/actions)
 [![GitHub](https://img.shields.io/badge/GitHub-coursework--tracker-181717?logo=github)](https://github.com/suxiangyu138/coursework-tracker)
 [![Gitee](https://img.shields.io/badge/Gitee-coursework--tracker-C71D23?logo=gitee)](https://gitee.com/suxiangyu138/coursework-tracker)
 [![Java](https://img.shields.io/badge/Java-17-orange?logo=openjdk)](https://openjdk.org/projects/jdk/17/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+<!-- 仓库私有期间，GitHub Actions 实时徽章无法被 Gitee 图片代理读取，这里用静态徽章并链接到 Actions；公开后可换回 badge.svg -->
 
 > 一学期十几门课，作业截止日散落在雨课堂、学习通、班级群和老师的口头通知里。
 > 作业哨兵把它们收进一个常驻桌面的小工具：**还剩几天、先做哪个、做完多少、期末要考多少分**。
