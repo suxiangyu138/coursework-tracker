@@ -99,6 +99,8 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 
 ![新建 / 编辑作业对话框](docs/assets/dialog-assignment.png)
 
+![提醒中心（历史提醒）](docs/assets/reminder-center.png)
+
 界面特点：
 
 - 左侧课程列表带完成率进度条，点击即筛选；
