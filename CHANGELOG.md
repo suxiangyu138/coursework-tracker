@@ -18,6 +18,7 @@
 - 关于与作者页：产品版本、作者苏巷雨（suxiangyu）、邮箱、GitHub/Gitee、运行环境与数据目录
 - 安全更新：选择新版本 jar，自动备份数据库，退出后由脚本替换 jar 并重启，data 目录完全不动
 - 正式发布 v1.1.0：版本号写入 jar manifest，打包 `dist/coursework-tracker.jar` + 启动器 + 使用说明 + .ico
+- Windows 免安装版：jpackage app-image，内置 Java 运行时，双击 exe 即用
 - AI 助手：DeepSeek Chat Completions，设置内配置 API Key / 接口地址 / 模型，支持测试连接
 - 6 个 Agent 工具：建课程、建作业、改作业（含状态/得分）、删作业、批量修改、查作业；写操作执行前必须人工确认
 - 执行计划预览：写操作前列出本轮全部步骤（含只读查询），拒绝则整批不执行

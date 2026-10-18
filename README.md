@@ -41,7 +41,9 @@
 
 - GitHub Releases：<https://github.com/suxiangyu138/coursework-tracker/releases>
 - Gitee Releases：<https://gitee.com/suxiangyu138/coursework-tracker/releases>
-- 发布包内含 `coursework-tracker.jar`、`启动作业哨兵.bat`、使用说明与 `.ico`；解压后双击即可
+- **Windows 免安装版（推荐）**：`CourseWorkTracker-1.1.0-windows-x64.zip`，解压后双击 `CourseWorkTracker.exe`，内置 Java 运行时，不需要安装 JDK
+- **跨平台 jar 版**：`CourseWorkTracker-1.1.0.zip`，包含 `coursework-tracker.jar`、`启动作业哨兵.bat`、使用说明与 `.ico`；机器已装 JDK 17 时可用
+- 两个包都不包含 `data/`，不会携带任何本机数据
 
 ```bash
 git clone https://github.com/suxiangyu138/coursework-tracker.git
@@ -138,6 +140,17 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 | --- | --- |
 | JDK | 17 及以上（开发机 JDK 25 已验证编译 `--release 17`） |
 | Maven | 3.8 及以上（开发机 3.9.16） |
+
+### Windows 免安装版
+
+下载 `CourseWorkTracker-1.1.0-windows-x64.zip` 解压，双击 `CourseWorkTracker.exe` 即可。
+内置 Java 运行时，目标电脑不需要安装 JDK；数据在 `app/data`，移动整个文件夹即可迁移。
+
+重新构建 exe：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build-exe.ps1
+```
 
 ### 构建与运行
 
