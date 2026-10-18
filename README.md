@@ -22,7 +22,7 @@
 | 作者 | 苏巷雨（学号：待填） |
 | 技术栈 | Java 17 · Swing + FlatLaf · SQLite（JDBC）· JFreeChart · Maven |
 | 运行环境 | Windows 10/11 优先，Linux / macOS 可运行；JDK 17 及以上 |
-| 当前状态 | `v1.0.0` 功能实现完成，94 条自动化测试通过，`--selftest` 自检通过 |
+| 当前状态 | `v1.0.0` 功能实现完成，96 条自动化测试通过，`--selftest` 自检通过 |
 
 ---
 
@@ -223,8 +223,9 @@ javaw -Xms32m -Xmx256m -XX:+UseSerialGC -jar <项目路径>\target\coursework-tr
 | "把操作系统实验三标记为已完成" | `update_assignment` |
 | "删掉计算机网络实验二" | `delete_assignment` |
 | "这周还有哪些作业没做？" | `list_assignments`（只读，自动执行） |
+| "把这周未完成的作业统一推迟三天" | `batch_update_assignments`（批量，确认后执行） |
 
-**确认机制**：新增、修改、删除都会先把操作摘要弹给你确认，默认焦点在「否」，点「否」则整批不执行，AI 会转成文字说明。只读查询直接执行，不会改数据。确认框会列出“改成什么”，例如“截止改为 10-30 23:59，权重改为 15%”，方便核对 Agent 是否理解正确。
+**执行计划预览**：涉及写操作时，会先弹出本轮完整步骤（查询、新建、修改、批量），默认焦点在「否」；点「否」整批都不执行。确认框会列出“改成什么”，例如“截止改为 10-30 23:59，权重改为 15%”，方便核对 Agent 是否理解正确。
 
 **复杂 / 模糊任务**：不会直接猜。它会先复述理解，追问缺失的关键信息（哪门课、哪条作业、什么时间、权重多少、处理范围），你补充后再给执行计划。实测「帮我把下周的作业弄一下」时，它会先确认“下周”的范围、是否只看某门课、是列清单还是改数据。
 
@@ -256,7 +257,7 @@ javaw -Xms32m -Xmx256m -XX:+UseSerialGC -jar <项目路径>\target\coursework-tr
 | 图表绘制 | JFreeChart 柱状图封装为可复用面板，跟随浅色/深色主题 |
 | 文件与 IO | 单实例文件锁、日志文件、SQLite `VACUUM INTO` 在线快照、JSON（Gson）导出/导入、CSV（UTF-8 BOM） |
 | HTTP 与 Agent | `java.net.http.HttpClient` 调用 DeepSeek，function calling 解析工具调用，确认后执行，`SwingWorker` 后台请求 |
-| 测试 | JUnit 5：94 条自动化测试（含 12 条 DAO 集成测试），`@TempDir`/内存库隔离 |
+| 测试 | JUnit 5：96 条自动化测试（含 12 条 DAO 集成测试），`@TempDir`/内存库隔离 |
 
 ---
 
@@ -282,7 +283,7 @@ Java课程设计_作业截止提醒与进度追踪器/
 │   ├── ui/                     # MainFrame、TrayController、ThemeManager、panel/、dialog/、table/
 │   └── util/                   # TimeUtils、Formatters、UrgencyCalculator、GradeCalculator
 ├── src/main/resources/db/schema.sql
-└── src/test/java/…             # 13 个测试类，94 条测试
+└── src/test/java/…             # 13 个测试类，96 条测试
 ```
 
 ---

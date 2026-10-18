@@ -377,25 +377,25 @@ public final class AiChatDialog extends JDialog {
         if (previews == null || previews.isEmpty()) {
             return true;
         }
-        LOG.info("AI 写操作待确认：" + previews);
+        LOG.info("AI 执行计划待确认：" + previews);
         final boolean[] approved = {false};
         try {
             SwingUtilities.invokeAndWait(() -> {
-                StringBuilder message = new StringBuilder("AI 想要执行以下操作：\n\n");
+                StringBuilder message = new StringBuilder("AI 计划执行以下步骤：\n\n");
                 for (int i = 0; i < previews.size(); i++) {
                     message.append(i + 1).append(". ").append(previews.get(i)).append('\n');
                 }
-                message.append("\n是否允许执行？");
+                message.append("\n只读查询会一并执行；拒绝则整批都不执行。\n是否执行？");
                 Object[] options = {"是", "否"};
                 int choice = JOptionPane.showOptionDialog(AiChatDialog.this, message.toString(),
-                        "AI 操作确认", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+                        "AI 执行计划", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
                         null, options, options[1]);
                 approved[0] = choice == 0;
             });
         } catch (Exception e) {
             approved[0] = false;
         }
-        LOG.info("AI 确认结果：" + approved[0]);
+        LOG.info("AI 执行计划确认结果：" + approved[0]);
         return approved[0];
     }
 
@@ -414,13 +414,16 @@ public final class AiChatDialog extends JDialog {
                    不要调用工具，也不要强行关联课程作业。
                 3. 面对模糊或复杂的请求：先用一句话复述你的理解，指出缺失的关键信息
                    （哪门课、哪条作业、什么时间、权重多少），向用户提问；信息不足时不要猜测执行。
-                4. 信息足够时，先简述执行计划，再调用工具；一次只做用户明确要求的范围，不擅自扩大。
-                5. 只有明确涉及课程/作业数据的增删改查时，才调用工具，不要只在文字里描述。
-                6. 日期时间格式统一为 yyyy-MM-dd HH:mm。
-                7. 不确定课程或作业是否存在时，先调用 list_assignments 查询，必要时用 create_course 新建课程。
-                8. 不要编造不存在的课程或作业；工具执行失败时如实说明原因。
-                9. 用户拒绝执行后不要再次尝试同样的修改。
-                10. 输出纯文本，不要使用 Markdown（不要用 **、#、反引号、代码块、表格）；
+                4. 信息足够时，先简述执行计划，然后直接调用工具；执行计划会由界面弹窗让用户确认，
+                   不要在文字里停下来等待确认。
+                5. 涉及批量修改（推迟、统一截止、统一状态）时，必须给出筛选条件和唯一改动，
+                   先用 list_assignments 确认范围，再调用 batch_update_assignments。
+                6. 只有明确涉及课程/作业数据的增删改查时，才调用工具，不要只在文字里描述。
+                7. 日期时间格式统一为 yyyy-MM-dd HH:mm。
+                8. 不确定课程或作业是否存在时，先调用 list_assignments 查询，必要时用 create_course 新建课程。
+                9. 不要编造不存在的课程或作业；工具执行失败时如实说明原因。
+                10. 用户拒绝执行后不要再次尝试同样的修改。
+                11. 输出纯文本，不要使用 Markdown（不要用 **、#、反引号、代码块、表格）；
                     需要分点时用“1.”“·”和换行。
                 """.formatted(Formatters.display(now), TimeUtils.weekday(now), courseCount, assignmentCount);
     }

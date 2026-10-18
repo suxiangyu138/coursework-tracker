@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -52,7 +53,61 @@ class AiActionExecutorTest {
     }
 
     @Test
-    @DisplayName("自然语言工具链：建课程 → 建作业 → 改状态 → 查询 → 删除")
+    @DisplayName("批量推迟：只影响筛选出的未完成作业")
+    void batchPostpone() throws AiException {
+        LocalDateTime now = LocalDateTime.of(2026, 10, 18, 12, 0);
+        Course course = courseService.create("操作系统", null, 4, null, null);
+        assignmentService.create(Assignment.draft(course.id(), "实验一",
+                LocalDateTime.of(2026, 10, 20, 23, 59), 15, null, null, now));
+        assignmentService.create(Assignment.draft(course.id(), "实验二",
+                LocalDateTime.of(2026, 10, 22, 23, 59), 15, null, null, now));
+        assignmentService.create(Assignment.draft(course.id(), "期末大作业",
+                LocalDateTime.of(2026, 11, 10, 23, 59), 40, null, null, now));
+        Assignment done = assignmentService.create(Assignment.draft(course.id(), "已完成作业",
+                LocalDateTime.of(2026, 10, 21, 23, 59), 10, null, null, now));
+        assignmentService.update(done.withStatus(AssignmentStatus.DONE).withSubmittedAt(now));
+
+        String preview = executor.preview(new DeepSeekClient.ToolCall("1",
+                AiTools.BATCH_UPDATE_ASSIGNMENTS,
+                "{\"course\":\"操作系统\",\"unfinished\":true,\"from\":\"2026-10-19 00:00\","
+                        + "\"to\":\"2026-10-25 23:59\",\"postponeDays\":3}"));
+        assertTrue(preview.contains("批量修改作业"));
+        assertTrue(preview.contains("命中 2 条"));
+        assertTrue(preview.contains("截止推迟 3 天"));
+
+        String result = execute(AiTools.BATCH_UPDATE_ASSIGNMENTS,
+                "{\"course\":\"操作系统\",\"unfinished\":true,\"from\":\"2026-10-19 00:00\","
+                        + "\"to\":\"2026-10-25 23:59\",\"postponeDays\":3}");
+        assertTrue(result.contains("已批量更新 2 条"));
+
+        assertEquals(LocalDateTime.of(2026, 10, 23, 23, 59), byTitle("实验一").dueAt());
+        assertEquals(LocalDateTime.of(2026, 10, 25, 23, 59), byTitle("实验二").dueAt());
+        assertEquals(LocalDateTime.of(2026, 11, 10, 23, 59), byTitle("期末大作业").dueAt());
+        assertEquals(LocalDateTime.of(2026, 10, 21, 23, 59), byTitle("已完成作业").dueAt());
+    }
+
+    @Test
+    @DisplayName("批量修改必须提供筛选条件与唯一改动")
+    void batchValidation() {
+        AiException noFilter = assertThrows(AiException.class, () -> execute(
+                AiTools.BATCH_UPDATE_ASSIGNMENTS, "{\"postponeDays\":1}"));
+        assertTrue(noFilter.getMessage().contains("筛选条件"));
+
+        AiException twoChanges = assertThrows(AiException.class, () -> execute(
+                AiTools.BATCH_UPDATE_ASSIGNMENTS,
+                "{\"course\":\"操作系统\",\"postponeDays\":1,\"setStatus\":\"DONE\"}"));
+        assertTrue(twoChanges.getMessage().contains("只能提供"));
+    }
+
+    private Assignment byTitle(String title) {
+        return assignmentService.listAll().stream()
+                .filter(assignment -> assignment.title().equals(title))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    @Test
+    @DisplayName("工具全链路：建课程 → 建作业 → 改状态 → 查询 → 删除")
     void fullToolChain() throws AiException {
         String courseResult = execute(AiTools.CREATE_COURSE,
                 "{\"name\":\"数据结构\",\"credit\":3}");

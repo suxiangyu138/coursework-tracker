@@ -15,6 +15,7 @@ public final class AiTools {
     public static final String CREATE_ASSIGNMENT = "create_assignment";
     public static final String UPDATE_ASSIGNMENT = "update_assignment";
     public static final String DELETE_ASSIGNMENT = "delete_assignment";
+    public static final String BATCH_UPDATE_ASSIGNMENTS = "batch_update_assignments";
     public static final String LIST_ASSIGNMENTS = "list_assignments";
 
     private AiTools() {
@@ -64,6 +65,21 @@ public final class AiTools {
                 "删除一条作业（不可恢复）。用户明确要求删除时才调用。",
                 schema(deleteProps, "title")));
 
+        JsonObject batchProps = new JsonObject();
+        batchProps.add("course", stringProp("只处理该课程，可省略"));
+        batchProps.add("status", statusProp());
+        batchProps.add("unfinished", booleanProp("只处理未完成（未开始 / 进行中）的作业"));
+        batchProps.add("from", stringProp("截止时间下限 yyyy-MM-dd HH:mm，可省略"));
+        batchProps.add("to", stringProp("截止时间上限 yyyy-MM-dd HH:mm，可省略"));
+        batchProps.add("postponeDays", numberProp("命中的作业截止时间整体推迟 N 天，负数为提前"));
+        batchProps.add("setDueAt", stringProp("命中的作业截止时间统一改为该时间 yyyy-MM-dd HH:mm"));
+        batchProps.add("setStatus", statusProp());
+        tools.add(new DeepSeekClient.ToolSpec(BATCH_UPDATE_ASSIGNMENTS,
+                "批量修改作业，用于「把这周未完成的作业推迟三天」「把这门课进行中的作业标记为未开始」等请求。"
+                        + "必须至少提供一个筛选条件（course / status / unfinished / from / to），"
+                        + "并且只能提供一个改动（postponeDays / setDueAt / setStatus）。",
+                schema(batchProps)));
+
         JsonObject listProps = new JsonObject();
         listProps.add("course", stringProp("按课程筛选，可省略"));
         listProps.add("status", statusProp());
@@ -100,6 +116,13 @@ public final class AiTools {
     private static JsonObject numberProp(String description) {
         JsonObject property = new JsonObject();
         property.addProperty("type", "number");
+        property.addProperty("description", description);
+        return property;
+    }
+
+    private static JsonObject booleanProp(String description) {
+        JsonObject property = new JsonObject();
+        property.addProperty("type", "boolean");
         property.addProperty("description", description);
         return property;
     }

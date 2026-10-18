@@ -48,6 +48,8 @@ public final class AiActionExecutor {
                         + "，权重 " + number(args, "weight", 0) + "%";
                 case AiTools.UPDATE_ASSIGNMENT -> "修改作业：" + label(args) + " → " + updateDetails(args);
                 case AiTools.DELETE_ASSIGNMENT -> "删除作业：" + label(args);
+                case AiTools.BATCH_UPDATE_ASSIGNMENTS -> batchPreview(args);
+                case AiTools.LIST_ASSIGNMENTS -> "查询作业：" + filterText(args);
                 default -> call.name();
             };
         } catch (AiException | RuntimeException e) {
@@ -63,6 +65,7 @@ public final class AiActionExecutor {
                 case AiTools.CREATE_ASSIGNMENT -> createAssignment(args);
                 case AiTools.UPDATE_ASSIGNMENT -> updateAssignment(args);
                 case AiTools.DELETE_ASSIGNMENT -> deleteAssignment(args);
+                case AiTools.BATCH_UPDATE_ASSIGNMENTS -> batchUpdate(args);
                 case AiTools.LIST_ASSIGNMENTS -> listAssignments(args);
                 default -> throw new AiException("不支持的工具：" + call.name());
             };
@@ -148,6 +151,164 @@ public final class AiActionExecutor {
         Assignment assignment = findAssignment(required(args, "title"), optionalText(args, "course"));
         assignmentService.delete(assignment.id());
         return "已删除作业：" + assignment.title();
+    }
+
+    private String batchPreview(JsonObject args) {
+        try {
+            List<Assignment> matches = selectForBatch(args);
+            return "批量修改作业：" + filterText(args) + " → " + changeText(args)
+                    + "（命中 " + matches.size() + " 条"
+                    + (matches.isEmpty() ? "" : "：" + sampleTitles(matches, 3)) + "）";
+        } catch (AiException | RuntimeException e) {
+            return "批量修改作业（筛选条件或改动不完整）";
+        }
+    }
+
+    private String batchUpdate(JsonObject args) throws AiException {
+        List<Assignment> matches = selectForBatch(args);
+        if (matches.isEmpty()) {
+            throw new AiException("没有符合条件的作业，未做修改");
+        }
+        LocalDateTime now = ClockProvider.now();
+        Integer postponeDays = args.has("postponeDays") && !args.get("postponeDays").isJsonNull()
+                ? args.get("postponeDays").getAsInt() : null;
+        LocalDateTime setDueAt = optionalDate(args, "setDueAt");
+        AssignmentStatus setStatus = args.has("setStatus") && !args.get("setStatus").isJsonNull()
+                ? parseStatus(args.get("setStatus").getAsString()) : null;
+
+        for (Assignment assignment : matches) {
+            Assignment updated = assignment;
+            if (postponeDays != null) {
+                updated = updated.withDueAt(assignment.dueAt().plusDays(postponeDays));
+            } else if (setDueAt != null) {
+                updated = updated.withDueAt(setDueAt);
+            } else if (setStatus != null) {
+                updated = updated.withStatus(setStatus)
+                        .withSubmittedAt(setStatus.isCompleted() ? now : null);
+            }
+            assignmentService.update(updated.withUpdatedAt(now));
+        }
+        return "已批量更新 " + matches.size() + " 条：" + sampleTitles(matches, 5)
+                + (matches.size() > 5 ? " 等" : "");
+    }
+
+    /**
+     * 批量筛选：至少一个条件，避免模型误改全部作业。
+     */
+    private List<Assignment> selectForBatch(JsonObject args) throws AiException {
+        String courseFilter = optionalText(args, "course");
+        String statusFilter = optionalText(args, "status");
+        boolean unfinished = bool(args, "unfinished");
+        LocalDateTime from = optionalDate(args, "from");
+        LocalDateTime to = optionalDate(args, "to");
+
+        if (courseFilter == null && statusFilter == null && !unfinished && from == null && to == null) {
+            throw new AiException("批量操作至少要有一个筛选条件（course / status / unfinished / from / to）");
+        }
+        if (from != null && to != null && from.isAfter(to)) {
+            throw new AiException("from 不能晚于 to");
+        }
+
+        int changes = 0;
+        if (args.has("postponeDays") && !args.get("postponeDays").isJsonNull()) {
+            changes++;
+            if (args.get("postponeDays").getAsInt() == 0) {
+                throw new AiException("postponeDays 不能为 0");
+            }
+        }
+        if (args.has("setDueAt") && !args.get("setDueAt").isJsonNull()) {
+            changes++;
+        }
+        if (args.has("setStatus") && !args.get("setStatus").isJsonNull()) {
+            changes++;
+        }
+        if (changes != 1) {
+            throw new AiException("批量修改需要且只能提供一个改动（postponeDays / setDueAt / setStatus）");
+        }
+
+        AssignmentStatus status = statusFilter == null ? null : parseStatus(statusFilter);
+        Map<Long, String> courseNames = courseNames();
+        List<Assignment> matches = new ArrayList<>();
+        for (Assignment assignment : assignmentService.listAll()) {
+            String courseName = courseNames.getOrDefault(assignment.courseId(), "未分类");
+            if (courseFilter != null && !courseFilter.equalsIgnoreCase(courseName)) {
+                continue;
+            }
+            if (status != null && assignment.status() != status) {
+                continue;
+            }
+            if (unfinished && assignment.status().isCompleted()) {
+                continue;
+            }
+            if (from != null && assignment.dueAt().isBefore(from)) {
+                continue;
+            }
+            if (to != null && assignment.dueAt().isAfter(to)) {
+                continue;
+            }
+            matches.add(assignment);
+        }
+        return matches;
+    }
+
+    private String filterText(JsonObject args) {
+        List<String> parts = new ArrayList<>();
+        String course = optionalText(args, "course");
+        if (course != null) {
+            parts.add("课程=" + course);
+        }
+        String status = optionalText(args, "status");
+        if (status != null) {
+            parts.add("状态=" + statusLabel(status));
+        }
+        if (bool(args, "unfinished")) {
+            parts.add("未完成");
+        }
+        String from = optionalText(args, "from");
+        if (from != null) {
+            parts.add("截止 ≥ " + formatDueText(from));
+        }
+        String to = optionalText(args, "to");
+        if (to != null) {
+            parts.add("截止 ≤ " + formatDueText(to));
+        }
+        return parts.isEmpty() ? "全部作业" : String.join("，", parts);
+    }
+
+    private String changeText(JsonObject args) {
+        Integer postponeDays = args.has("postponeDays") && !args.get("postponeDays").isJsonNull()
+                ? args.get("postponeDays").getAsInt() : null;
+        if (postponeDays != null) {
+            return postponeDays > 0 ? "截止推迟 " + postponeDays + " 天"
+                    : "截止提前 " + (-postponeDays) + " 天";
+        }
+        String setDueAt = optionalText(args, "setDueAt");
+        if (setDueAt != null) {
+            return "截止改为 " + formatDueText(setDueAt);
+        }
+        String setStatus = optionalText(args, "setStatus");
+        if (setStatus != null) {
+            return "状态改为 " + statusLabel(setStatus);
+        }
+        return "无改动";
+    }
+
+    private static String sampleTitles(List<Assignment> assignments, int limit) {
+        List<String> titles = new ArrayList<>();
+        for (int i = 0; i < Math.min(limit, assignments.size()); i++) {
+            titles.add(assignments.get(i).title());
+        }
+        return String.join("、", titles);
+    }
+
+    private static LocalDateTime optionalDate(JsonObject args, String key) throws AiException {
+        String value = optionalText(args, key);
+        return value == null || value.isBlank() ? null : parseDue(value);
+    }
+
+    private static boolean bool(JsonObject args, String key) {
+        JsonElement element = args.get(key);
+        return element != null && !element.isJsonNull() && element.getAsBoolean();
     }
 
     private String listAssignments(JsonObject args) throws AiException {

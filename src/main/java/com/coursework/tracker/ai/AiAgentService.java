@@ -65,13 +65,14 @@ public final class AiAgentService {
             List<DeepSeekClient.ToolCall> mutating = reply.toolCalls().stream()
                     .filter(call -> executor.isMutating(call.name()))
                     .toList();
+            // 有写操作时，把本轮所有步骤（含只读查询）一起展示，先确认计划再执行
             boolean approved = mutating.isEmpty()
-                    || confirmer.confirm(mutating.stream().map(executor::preview).toList());
+                    || confirmer.confirm(reply.toolCalls().stream().map(executor::preview).toList());
 
             for (DeepSeekClient.ToolCall call : reply.toolCalls()) {
                 String result;
-                if (executor.isMutating(call.name()) && !approved) {
-                    result = "用户拒绝了该操作，未执行。";
+                if (!approved) {
+                    result = "用户拒绝了该执行计划，未执行。";
                 } else {
                     try {
                         result = executor.execute(call);
@@ -85,7 +86,7 @@ public final class AiAgentService {
 
             if (!approved) {
                 messages.add(DeepSeekClient.ChatMessage.system(
-                        "用户已拒绝上述写操作。不要再次尝试执行相同修改，直接用文字说明或询问用户。"));
+                        "用户已拒绝上述执行计划，整批操作都没有执行。不要再次尝试执行相同修改，直接用文字说明或询问用户。"));
             }
         }
         throw new AiException("操作步骤过多，已停止。请换一种更直接的说法重试。");
