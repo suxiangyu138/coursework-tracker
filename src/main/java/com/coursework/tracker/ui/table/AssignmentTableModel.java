@@ -6,6 +6,7 @@ import com.coursework.tracker.model.AssignmentStatus;
 import com.coursework.tracker.model.Urgency;
 import com.coursework.tracker.util.UrgencyCalculator;
 
+import javax.swing.event.TableModelEvent;
 import javax.swing.table.AbstractTableModel;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -41,7 +42,9 @@ public final class AssignmentTableModel extends AbstractTableModel {
     public void setNow(LocalDateTime value) {
         this.now = value;
         if (!assignments.isEmpty()) {
-            fireTableRowsUpdated(0, assignments.size() - 1);
+            // 只通知"倒计时"列变化，避免每秒整表重绘；紧急度随 60 秒刷新重算
+            fireTableChanged(new TableModelEvent(this, 0, assignments.size() - 1, 4,
+                    TableModelEvent.UPDATE));
         }
     }
 

@@ -66,6 +66,9 @@ public final class TrayController {
         MenuItem check = new MenuItem("立即检查提醒");
         check.addActionListener(e -> frame.checkRemindersNow());
 
+        MenuItem center = new MenuItem("提醒中心");
+        center.addActionListener(e -> frame.showReminderCenter());
+
         MenuItem mute = new MenuItem("静音 1 小时");
         mute.addActionListener(e -> {
             context.reminderService().muteFor(Duration.ofHours(1));
@@ -83,6 +86,7 @@ public final class TrayController {
 
         menu.add(open);
         menu.add(check);
+        menu.add(center);
         menu.addSeparator();
         menu.add(mute);
         menu.add(unmute);

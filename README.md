@@ -20,7 +20,7 @@
 | 作者 | 苏巷雨（学号：待填） |
 | 技术栈 | Java 17 · Swing + FlatLaf · SQLite（JDBC）· JFreeChart · Maven |
 | 运行环境 | Windows 10/11 优先，Linux / macOS 可运行；JDK 17 及以上 |
-| 当前状态 | `v1.0.0` 功能实现完成，68 条自动化测试通过，`--selftest` 自检通过 |
+| 当前状态 | `v1.0.0` 功能实现完成，76 条自动化测试通过，`--selftest` 自检通过 |
 
 ---
 
@@ -65,13 +65,15 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 | | 颜色语义 | 红（<24h）/ 橙（<72h）/ 黄（<7d）/ 绿 / 灰（已完成） |
 | | 紧急度排序 | 综合剩余时间、权重、预计耗时计算，可切换按截止时间 / 权重 / 紧急度排序 |
 | 提醒 | 分级提醒 | T-24h、T-6h、T-1h、T-15min 四档 |
-| | 逾期提醒 | 逾期未交每天汇总提醒一次 |
+| | 逾期提醒 | 逾期未交每天汇总提醒一次（按天去重） |
+| | 提醒中心 | 历史提醒可回看，避免气泡被系统折叠后彻底错过 |
 | | 托盘常驻 | 最小化到托盘、气泡通知、托盘菜单 |
 | 统计 | 完成度 | 总体完成率、按课程完成率、**权重完成度**（已完成作业占总权重比） |
 | | 工作量图表 | 未来 14 天到期数量柱状图 + 各课程完成率条形图 |
 | 成绩 | 加权得分 | 按作业权重计算课程当前得分 |
 | | 总评预估 | 未出分部分按已完成均分预测，得出预计总评 |
 | 系统 | 本地持久化 | SQLite 单文件，自动建库、事务写入 |
+| | 数据备份 | JSON 全量导出/导入、CSV 作业清单、每日自动备份（保留 7 份） |
 | | 单实例运行 | 重复启动不产生两个托盘图标 |
 
 ### P1 · 增强功能
@@ -82,7 +84,7 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 - ✅ 错过提醒补偿：程序未运行期间错过的提醒，启动后补发一次
 - ✅ 课程管理（学分、教师、目标分）
 - ✅ 深色主题（设置中切换，即时生效）
-- ⬜ 数据导出 / 导入（当前可复制 `data/coursework.db` 备份，JSON 导入待做）
+- ✅ 数据导出 / 导入：JSON 全量备份、CSV 作业清单；导入前自动备份、失败整体回滚
 - ✅ 开机自启（Windows 注册表启动项，设置内可开关，默认关闭）
 
 ### P2 · 扩展（不做，仅记录）
@@ -102,7 +104,8 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 - 左侧课程列表带完成率进度条，点击即筛选；
 - 表格按紧急度排序，倒计时按紧迫度着色，逾期显示深红；
 - 底部 6 个指标卡（今日/本周/逾期/完成率/权重完成度/预计 GPA）+ 两张图表；
-- 关闭窗口最小化到托盘，提醒以气泡弹出。
+- 关闭窗口最小化到托盘，提醒以气泡弹出；
+- 提醒中心（`Ctrl+R`）可回看历史提醒；「文件」菜单支持 JSON/CSV 导出与导入。
 
 ---
 
@@ -139,9 +142,10 @@ java -jar target/coursework-tracker-1.0.0.jar --autostart=on # 开启开机自�
 | 路径 | 说明 |
 | --- | --- |
 | `data/coursework.db` | SQLite 数据库，首次启动自动创建（与 jar 同级） |
+| `data/backup/coursework-yyyyMMdd.db` | 每日首次启动自动备份，保留最近 7 份 |
 | `logs/app.log` | 运行日志，单文件上限 5 MB |
 
-删除 `data/` 目录即恢复出厂状态；备份数据只需复制 `coursework.db`。
+删除 `data/` 目录即恢复出厂状态。备份除了自动生成的快照，也可以在「文件 → 导出 JSON 备份」手动导出；恢复时关闭程序，用备份文件覆盖 `data/coursework.db` 即可。
 
 
 ---
@@ -204,8 +208,8 @@ javaw -Xms32m -Xmx256m -XX:+UseSerialGC -jar <项目路径>\target\coursework-tr
 | JDBC 数据库编程 | SQLite 连接管理、PreparedStatement 防注入、事务、索引、外键级联、建表脚本与版本迁移 |
 | 图形界面 | Swing 自定义 `JTable` 渲染器（紧急度进度条、倒计时着色）、`ListCellRenderer`（课程进度条）、FlatLaf 主题 |
 | 图表绘制 | JFreeChart 柱状图封装为可复用面板，跟随浅色/深色主题 |
-| 文件与 IO | 单实例文件锁、日志文件、SQLite 数据文件备份 |
-| 测试 | JUnit 5：68 条自动化测试（含 12 条 DAO 集成测试），`@TempDir`/内存库隔离 |
+| 文件与 IO | 单实例文件锁、日志文件、SQLite `VACUUM INTO` 在线快照、JSON（Gson）导出/导入、CSV（UTF-8 BOM） |
+| 测试 | JUnit 5：76 条自动化测试（含 12 条 DAO 集成测试），`@TempDir`/内存库隔离 |
 
 ---
 
@@ -226,11 +230,11 @@ Java课程设计_作业截止提醒与进度追踪器/
 │   ├── core/                   # AppContext、AppPaths、AutoStartManager、ClockProvider、EventBus、单实例锁、日志
 │   ├── model/                  # Assignment、Course、Countdown、Urgency、ReminderRule、CourseGrade …
 │   ├── dao/                    # Database、SchemaMigrator、CourseDao、AssignmentDao、ReminderLogDao、SettingDao
-│   ├── service/                # 作业/课程服务、提醒规划与调度、统计、成绩、设置、示例数据
+│   ├── service/                # 作业/课程服务、提醒规划与调度、统计、成绩、设置、示例数据、备份导入导出
 │   ├── ui/                     # MainFrame、TrayController、ThemeManager、panel/、dialog/、table/
 │   └── util/                   # TimeUtils、Formatters、UrgencyCalculator、GradeCalculator
 ├── src/main/resources/db/schema.sql
-└── src/test/java/…             # 6 个测试类，68 条测试
+└── src/test/java/…             # 9 个测试类，76 条测试
 ```
 
 ---
@@ -293,7 +297,9 @@ Java课程设计_作业截止提醒与进度追踪器/
 | 中文显示为方块 | 打包时未携带字体或系统缺少中文字体；本项目使用系统字体，正常不会出现 |
 | 提醒不弹窗 | Windows「通知和操作」中允许 Java 应用通知；程序内「设置 → 提醒开关」是否开启 |
 | 想清空数据 | 关闭程序，删除 `data/coursework.db` |
-| 换电脑 | 复制整个 `data/` 目录到新机器的相同位置 |
+| 数据备份在哪 | 每日首次启动自动备份到 `data/backup/coursework-yyyyMMdd.db`（保留 7 份）；也可「文件 → 立即备份数据 / 导出 JSON 备份」 |
+| 如何恢复备份 | 关闭程序，把备份文件复制为 `data/coursework.db`（覆盖前先留一份当前库） |
+| 换电脑 | 复制整个 `data/` 目录到新机器的相同位置，或导出 JSON 到新机器导入 |
 
 ---
 

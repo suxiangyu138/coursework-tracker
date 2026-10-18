@@ -16,6 +16,7 @@ import com.coursework.tracker.service.BusinessException;
 import com.coursework.tracker.ui.dialog.AssignmentDialog;
 import com.coursework.tracker.ui.dialog.CourseDialog;
 import com.coursework.tracker.ui.dialog.GradeDetailDialog;
+import com.coursework.tracker.ui.dialog.ReminderCenterDialog;
 import com.coursework.tracker.ui.dialog.SettingsDialog;
 import com.coursework.tracker.ui.panel.CourseListPanel;
 import com.coursework.tracker.ui.panel.DashboardPanel;
@@ -32,6 +33,7 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -53,6 +55,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableRowSorter;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -68,7 +71,9 @@ import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -220,6 +225,11 @@ public final class MainFrame extends JFrame {
         file.add(menuItem("新建作业", "control N", e -> newAssignment()));
         file.add(menuItem("新建课程", null, e -> newCourse()));
         file.addSeparator();
+        file.add(menuItem("导出 JSON 备份…", null, e -> exportJsonBackup()));
+        file.add(menuItem("导出 CSV 作业清单…", null, e -> exportCsv()));
+        file.add(menuItem("导入备份…", null, e -> importBackup()));
+        file.add(menuItem("立即备份数据", null, e -> backupNow()));
+        file.addSeparator();
         file.add(menuItem("生成示例数据", null, e -> generateDemoData()));
         file.add(menuItem("打开数据目录", null, e -> openDataFolder()));
         file.addSeparator();
@@ -233,6 +243,7 @@ public final class MainFrame extends JFrame {
         bar.add(view);
 
         JMenu reminder = new JMenu("提醒");
+        reminder.add(menuItem("提醒中心", "control R", e -> showReminderCenter()));
         reminder.add(menuItem("立即检查", null, e -> checkRemindersNow()));
         reminder.add(menuItem("测试提醒", null, e -> testNotification()));
         reminder.addSeparator();
@@ -736,6 +747,103 @@ public final class MainFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "当前系统不支持托盘通知。", "提示",
                     JOptionPane.INFORMATION_MESSAGE);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // 备份与提醒中心
+    // ------------------------------------------------------------------
+
+    private void exportJsonBackup() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("导出 JSON 备份");
+        chooser.setFileFilter(new FileNameExtensionFilter("JSON 备份 (*.json)", "json"));
+        chooser.setSelectedFile(new File("coursework-backup-" + LocalDate.now() + ".json"));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        Path file = ensureExtension(chooser.getSelectedFile().toPath(), ".json");
+        try {
+            var result = context.backupService().exportJson(file);
+            JOptionPane.showMessageDialog(this,
+                    "已导出 " + result.courses() + " 门课程、" + result.assignments() + " 条作业：\n"
+                            + result.file(),
+                    "导出完成", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception e) {
+            showBackupError("导出失败", e);
+        }
+    }
+
+    private void exportCsv() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("导出 CSV 作业清单");
+        chooser.setFileFilter(new FileNameExtensionFilter("CSV 文件 (*.csv)", "csv"));
+        chooser.setSelectedFile(new File("作业清单-" + LocalDate.now() + ".csv"));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        Path file = ensureExtension(chooser.getSelectedFile().toPath(), ".csv");
+        try {
+            var result = context.backupService().exportCsv(file);
+            JOptionPane.showMessageDialog(this,
+                    "已导出 " + result.assignments() + " 条作业：\n" + result.file(),
+                    "导出完成", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception e) {
+            showBackupError("导出 CSV 失败", e);
+        }
+    }
+
+    private void importBackup() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("导入 JSON 备份");
+        chooser.setFileFilter(new FileNameExtensionFilter("JSON 备份 (*.json)", "json"));
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        Path file = chooser.getSelectedFile().toPath();
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "导入会覆盖当前全部课程与作业。\n导入前会自动备份当前数据，确定继续吗？",
+                "导入备份", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+        try {
+            var result = context.backupService().importJson(file);
+            selectedCourseId = null;
+            refreshAll();
+            JOptionPane.showMessageDialog(this,
+                    "导入完成：" + result.courses() + " 门课程、" + result.assignments() + " 条作业。\n\n"
+                            + "导入前备份：\n" + result.safetyBackup(),
+                    "导入完成", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception e) {
+            showBackupError("导入失败", e);
+        }
+    }
+
+    private void backupNow() {
+        try {
+            Path file = context.backupService().backupNow();
+            showToast("已备份：" + file.getFileName());
+            JOptionPane.showMessageDialog(this, "备份完成：\n" + file, "备份数据",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception e) {
+            showBackupError("备份失败", e);
+        }
+    }
+
+    private void showBackupError(String title, Exception e) {
+        LOG.log(Level.WARNING, title, e);
+        JOptionPane.showMessageDialog(this, title + "：\n" + e.getMessage(),
+                title, JOptionPane.ERROR_MESSAGE);
+    }
+
+    private static Path ensureExtension(Path path, String extension) {
+        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+        return name.endsWith(extension) ? path
+                : path.resolveSibling(path.getFileName() + extension);
+    }
+
+    public void showReminderCenter() {
+        ReminderCenterDialog.show(this, context);
     }
 
     private void openDataFolder() {

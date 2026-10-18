@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 public final class SchemaMigrator {
 
     private static final Logger LOG = Logger.getLogger(SchemaMigrator.class.getName());
-    private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 2;
 
     private SchemaMigrator() {
     }
@@ -34,12 +34,44 @@ public final class SchemaMigrator {
                         st.execute(statement);
                     }
                 }
-                LOG.info("已创建数据库结构 v1");
+                version = CURRENT_VERSION;
+                LOG.info("已创建数据库结构 v" + version);
+            } else if (version < 2) {
+                migrateToV2(connection);
+                version = 2;
+                LOG.info("数据库已升级到 v2（提醒记录改为按天去重）");
             }
             seedDefaults(connection);
             writeVersion(connection, CURRENT_VERSION);
             return null;
         });
+    }
+
+    /**
+     * v2：提醒记录增加 fired_date，唯一约束改为 (作业, 规则, 日期)，
+     * 使"逾期每日提醒"真正成立，同时保持普通档位只提醒一次。
+     */
+    private static void migrateToV2(Connection connection) throws SQLException {
+        String[] statements = {
+                "CREATE TABLE reminder_log_v2 ("
+                        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                        + "assignment_id INTEGER NOT NULL REFERENCES assignment(id) ON DELETE CASCADE,"
+                        + "rule_code TEXT NOT NULL,"
+                        + "fired_date TEXT NOT NULL,"
+                        + "fired_at TEXT NOT NULL,"
+                        + "UNIQUE (assignment_id, rule_code, fired_date))",
+                "INSERT INTO reminder_log_v2(id, assignment_id, rule_code, fired_date, fired_at) "
+                        + "SELECT id, assignment_id, rule_code, substr(fired_at, 1, 10), fired_at "
+                        + "FROM reminder_log",
+                "DROP TABLE reminder_log",
+                "ALTER TABLE reminder_log_v2 RENAME TO reminder_log",
+                "CREATE INDEX IF NOT EXISTS idx_reminder_fired ON reminder_log(fired_at)"
+        };
+        for (String statement : statements) {
+            try (Statement st = connection.createStatement()) {
+                st.execute(statement);
+            }
+        }
     }
 
     private static void createSettingTable(Connection connection) throws SQLException {

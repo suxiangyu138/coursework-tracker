@@ -33,8 +33,9 @@ CREATE TABLE IF NOT EXISTS reminder_log (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     assignment_id INTEGER NOT NULL REFERENCES assignment(id) ON DELETE CASCADE,
     rule_code     TEXT    NOT NULL,
+    fired_date    TEXT    NOT NULL,
     fired_at      TEXT    NOT NULL,
-    UNIQUE (assignment_id, rule_code)
+    UNIQUE (assignment_id, rule_code, fired_date)
 );
 
 CREATE TABLE IF NOT EXISTS setting (
@@ -45,3 +46,4 @@ CREATE TABLE IF NOT EXISTS setting (
 CREATE INDEX IF NOT EXISTS idx_assignment_due    ON assignment(due_at);
 CREATE INDEX IF NOT EXISTS idx_assignment_course ON assignment(course_id);
 CREATE INDEX IF NOT EXISTS idx_assignment_status ON assignment(status);
+CREATE INDEX IF NOT EXISTS idx_reminder_fired    ON reminder_log(fired_at);

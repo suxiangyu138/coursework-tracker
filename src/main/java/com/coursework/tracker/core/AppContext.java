@@ -7,6 +7,7 @@ import com.coursework.tracker.dao.ReminderLogDao;
 import com.coursework.tracker.dao.SchemaMigrator;
 import com.coursework.tracker.dao.SettingDao;
 import com.coursework.tracker.service.AssignmentService;
+import com.coursework.tracker.service.BackupService;
 import com.coursework.tracker.service.CourseService;
 import com.coursework.tracker.service.DemoDataFactory;
 import com.coursework.tracker.service.GradeService;
@@ -38,6 +39,7 @@ public final class AppContext implements AutoCloseable {
     private final MutableReminderSink reminderSink = new MutableReminderSink();
     private final ReminderService reminderService;
     private final DemoDataFactory demoDataFactory;
+    private final BackupService backupService;
     private final AtomicBoolean closed = new AtomicBoolean();
 
     public AppContext(Database database) {
@@ -57,6 +59,10 @@ public final class AppContext implements AutoCloseable {
         this.reminderService = new ReminderService(assignmentDao, courseDao, reminderLogDao,
                 settings, reminderSink, eventBus);
         this.demoDataFactory = new DemoDataFactory(courseService, assignmentService);
+        Path backupDir = (database.file() != null && database.file().getParent() != null)
+                ? database.file().getParent().resolve("backup")
+                : AppPaths.dataDir().resolve("backup");
+        this.backupService = new BackupService(database, courseDao, assignmentDao, settingDao, backupDir);
     }
 
     public static AppContext open(Path databaseFile) {
@@ -117,6 +123,10 @@ public final class AppContext implements AutoCloseable {
 
     public DemoDataFactory demoDataFactory() {
         return demoDataFactory;
+    }
+
+    public BackupService backupService() {
+        return backupService;
     }
 
     @Override

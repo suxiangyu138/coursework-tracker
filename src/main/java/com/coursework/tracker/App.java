@@ -85,6 +85,15 @@ public final class App {
 
         ThemeManager.install(context.settings().theme());
 
+        try {
+            var backup = context.backupService().autoBackupIfNeeded(ClockProvider.now());
+            if (backup != null) {
+                LOG.info("每日自动备份完成: " + backup);
+            }
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "自动备份失败", e);
+        }
+
         String screenshotPath = null;
         for (String arg : args) {
             if (arg.startsWith("--screenshot=")) {

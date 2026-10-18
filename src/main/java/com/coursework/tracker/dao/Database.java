@@ -119,6 +119,24 @@ public final class Database implements AutoCloseable {
         });
     }
 
+    /**
+     * 用 SQLite 的 {@code VACUUM INTO} 生成一致性快照，即使数据库正在被本进程使用也安全。
+     * 目标文件已存在时会先删除。
+     */
+    public synchronized Path backupTo(Path target) {
+        try {
+            if (target.getParent() != null) {
+                Files.createDirectories(target.getParent());
+            }
+            Files.deleteIfExists(target);
+        } catch (IOException e) {
+            throw new DataAccessException("准备备份文件失败: " + target, e);
+        }
+        String escaped = target.toAbsolutePath().toString().replace("'", "''");
+        execute("VACUUM INTO '" + escaped + "'");
+        return target;
+    }
+
     public Path file() {
         return file;
     }
