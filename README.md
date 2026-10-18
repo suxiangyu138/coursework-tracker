@@ -37,6 +37,12 @@
 | GitHub（主） | <https://github.com/suxiangyu138/coursework-tracker> | 主仓库，GitHub Actions 自动跑测试 |
 | Gitee（镜像） | <https://gitee.com/suxiangyu138/coursework-tracker> | 国内访问更快 |
 
+## 下载
+
+- GitHub Releases：<https://github.com/suxiangyu138/coursework-tracker/releases>
+- Gitee Releases：<https://gitee.com/suxiangyu138/coursework-tracker/releases>
+- 发布包内含 `coursework-tracker.jar`、`启动作业哨兵.bat`、使用说明与 `.ico`；解压后双击即可
+
 ```bash
 git clone https://github.com/suxiangyu138/coursework-tracker.git
 # 或
