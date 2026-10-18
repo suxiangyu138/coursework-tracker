@@ -31,6 +31,9 @@
 ### 修复
 
 - Gitee 私有仓库下 GitHub Actions 实时徽章显示为灰色 G：改为 shields 静态 CI 徽章并链接 Actions
+- 新增稳定运行目录 `dist/`：`mvn package` 自动复制 jar，数据在 `dist/data`，`mvn clean` 不再丢失 API Key 与作业数据
+- `scripts/start.bat` 优先启动 `dist/coursework-tracker.jar`
+- 设置页提示“测试连接不会保存”，成功后提示点击保存
 - API Key 错误时设置页布局错乱：错误全文把 JLabel 撑到 797px，挤坏 GridBagLayout；状态区改为固定宽度、单行截断，完整错误放 tooltip
 - 托盘右键菜单中文显示为方块：Windows 原生 AWT 菜单固定使用系统菜单字体（英文系统为 Segoe UI，无中文字形），改用 Swing `JPopupMenu` 自绘菜单
 - 托盘菜单改为左键/右键都可弹出，菜单项使用界面同一套中文字体

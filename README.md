@@ -134,17 +134,19 @@ git clone https://gitee.com/suxiangyu138/coursework-tracker.git
 mvn clean package
 
 # 2. 运行
-java -jar target/coursework-tracker-1.0.0.jar
+java -jar dist/coursework-tracker.jar
 
 # 3. 其他入口
-java -jar target/coursework-tracker-1.0.0.jar --seed-demo   # 仅生成示例数据（8 门课 / 20 条作业）
-java -jar target/coursework-tracker-1.0.0.jar --selftest    # 无界面自检：建库、算成绩、跑提醒
-java -jar target/coursework-tracker-1.0.0.jar --screenshot=docs/assets/main-light.png  # 渲染界面截图
-java -jar target/coursework-tracker-1.0.0.jar --minimized    # 启动后直接进托盘，不弹窗口
-java -jar target/coursework-tracker-1.0.0.jar --autostart=on # 开启开机自启（off / status 同理）
+java -jar dist/coursework-tracker.jar --seed-demo   # 仅生成示例数据（8 门课 / 20 条作业）
+java -jar dist/coursework-tracker.jar --selftest    # 无界面自检：建库、算成绩、跑提醒
+java -jar dist/coursework-tracker.jar --screenshot=docs/assets/main-light.png  # 渲染界面截图
+java -jar dist/coursework-tracker.jar --minimized    # 启动后直接进托盘，不弹窗口
+java -jar dist/coursework-tracker.jar --autostart=on # 开启开机自启（off / status 同理）
 ```
 
 首次启动若数据库为空，程序会询问是否生成示例数据；也可以在「文件 → 生成示例数据」中随时生成。
+
+> `target/` 是构建目录，`mvn clean` 会连同 `target/data` 一起删除。日常运行请用 `dist/coursework-tracker.jar`：`mvn package` 会自动把 jar 复制到 `dist/`，数据在 `dist/data`，重建不会丢。用户拿到 `dist/` 文件夹后，数据也一直保存在 jar 同级。
 
 ### 数据文件
 
@@ -182,9 +184,9 @@ Windows 11 / JDK 25 / 20 条示例作业、窗口静止：
 也可以用命令行：
 
 ```bash
-java -jar target/coursework-tracker-1.0.0.jar --autostart=on
-java -jar target/coursework-tracker-1.0.0.jar --autostart=status
-java -jar target/coursework-tracker-1.0.0.jar --autostart=off
+java -jar dist/coursework-tracker.jar --autostart=on
+java -jar dist/coursework-tracker.jar --autostart=status
+java -jar dist/coursework-tracker.jar --autostart=off
 ```
 
 写入的启动命令：

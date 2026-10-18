@@ -163,7 +163,7 @@ public final class SettingsDialog extends JDialog {
         aiTestButton.addActionListener(e -> testAiConnection());
 
         gbc.gridy++;
-        JLabel aiHint = new JLabel("API Key 保存在本地数据库，请勿分享 data 目录");
+        JLabel aiHint = new JLabel("Key 存本地 data 目录；测试连接不会保存，请点「保存」");
         aiHint.setForeground(new java.awt.Color(0x6B7280));
         aiHint.setFont(aiHint.getFont().deriveFont(Font.PLAIN, 12f));
         form.add(aiHint, gbc);
@@ -283,7 +283,7 @@ public final class SettingsDialog extends JDialog {
                 aiTestButton.setEnabled(true);
                 try {
                     get();
-                    setAiStatus("连接成功", new java.awt.Color(0x2E7D32));
+                    setAiStatus("连接成功，点击保存生效", new java.awt.Color(0x2E7D32));
                 } catch (Exception e) {
                     Throwable cause = e.getCause() == null ? e : e.getCause();
                     String message = cause.getMessage() == null
