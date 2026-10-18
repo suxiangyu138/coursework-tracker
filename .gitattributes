@@ -1,0 +1,17 @@
+# 统一换行符，避免 Windows / macOS 协作时整文件 diff
+* text=auto eol=lf
+
+*.java   text eol=lf
+*.xml    text eol=lf
+*.md     text eol=lf
+*.sql    text eol=lf
+*.properties text eol=lf
+*.sh     text eol=lf
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+
+*.png    binary
+*.jpg    binary
+*.ico    binary
+*.jar    binary
+*.db     binary

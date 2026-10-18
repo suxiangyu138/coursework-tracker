@@ -1,0 +1,44 @@
+# ---------- Java / Maven ----------
+target/
+build/
+out/
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+replay_pid*
+
+# ---------- IDE ----------
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.code-workspace
+.settings/
+.classpath
+.project
+nbproject/private/
+
+# ---------- 运行时数据（本地库 / 日志 / 导出，不入库） ----------
+data/
+logs/
+export/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.log
+
+# ---------- 系统文件 ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- 临时文件 ----------
+tmp/
+*.tmp
+*.bak
+*~
+.attach_pid*
