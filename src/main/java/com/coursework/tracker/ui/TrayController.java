@@ -3,17 +3,28 @@ package com.coursework.tracker.ui;
 import com.coursework.tracker.core.AppContext;
 import com.coursework.tracker.model.PlannedReminder;
 
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import javax.swing.JWindow;
+import javax.swing.SwingUtilities;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 import java.awt.AWTException;
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
+import java.awt.GraphicsEnvironment;
 import java.awt.Image;
-import java.awt.MenuItem;
-import java.awt.PopupMenu;
+import java.awt.MouseInfo;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.SystemTray;
 import java.awt.Toolkit;
 import java.awt.TrayIcon;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.time.Duration;
 import java.util.List;
@@ -22,6 +33,10 @@ import java.util.logging.Logger;
 
 /**
  * 托盘常驻：图标、右键菜单、气泡提醒。系统不支持托盘时降级为普通窗口模式。
+ *
+ * <p>右键菜单使用 Swing {@link JPopupMenu} 而不是 AWT {@code PopupMenu}：
+ * Windows 原生菜单固定用系统菜单字体（英文系统下是 Segoe UI），没有中文字形，
+ * 会显示成一排方块；Swing 菜单跟随 FlatLaf 字体，不会出现该问题。
  */
 public final class TrayController {
 
@@ -33,6 +48,8 @@ public final class TrayController {
     private TrayIcon trayIcon;
     private boolean installed;
     private boolean minimizedHintShown;
+    private JPopupMenu trayMenu;
+    private JWindow menuHost;
 
     public TrayController(MainFrame frame, AppContext context) {
         this.frame = frame;
@@ -45,9 +62,23 @@ public final class TrayController {
             return false;
         }
         try {
-            trayIcon = new TrayIcon(createIcon(), "作业哨兵", buildMenu());
+            trayIcon = new TrayIcon(createIcon(), "作业哨兵");
             trayIcon.setImageAutoSize(true);
-            trayIcon.addActionListener(e -> frame.showFromTray());
+            trayIcon.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseReleased(MouseEvent event) {
+                    if (event.isPopupTrigger() || SwingUtilities.isRightMouseButton(event)) {
+                        showTrayMenu();
+                    }
+                }
+
+                @Override
+                public void mouseClicked(MouseEvent event) {
+                    if (SwingUtilities.isLeftMouseButton(event) && event.getClickCount() == 1) {
+                        showTrayMenu();
+                    }
+                }
+            });
             SystemTray.getSystemTray().add(trayIcon);
             installed = true;
             return true;
@@ -57,42 +88,77 @@ public final class TrayController {
         }
     }
 
-    private PopupMenu buildMenu() {
-        PopupMenu menu = new PopupMenu();
+    /** 在鼠标位置附近弹出 Swing 托盘菜单，避开屏幕边缘。 */
+    private void showTrayMenu() {
+        if (trayMenu != null && trayMenu.isVisible()) {
+            trayMenu.setVisible(false);
+            return;
+        }
+        JPopupMenu menu = buildMenu();
+        Dimension size = menu.getPreferredSize();
+        Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+        Point pointer = MouseInfo.getPointerInfo() == null
+                ? new Point(screen.x + screen.width - 80, screen.y + screen.height - 80)
+                : MouseInfo.getPointerInfo().getLocation();
 
-        MenuItem open = new MenuItem("显示主界面");
-        open.addActionListener(e -> frame.showFromTray());
+        int x = Math.max(screen.x + 4,
+                Math.min(pointer.x - size.width / 2, screen.x + screen.width - size.width - 8));
+        int y = pointer.y - size.height - 12;
+        if (y < screen.y + 4) {
+            y = Math.min(pointer.y + 12, screen.y + screen.height - size.height - 8);
+        }
 
-        MenuItem check = new MenuItem("立即检查提醒");
-        check.addActionListener(e -> frame.checkRemindersNow());
+        JWindow host = new JWindow();
+        host.setAlwaysOnTop(true);
+        host.setFocusableWindowState(false);
+        host.setLocation(x, y);
+        host.setSize(1, 1);
+        host.setVisible(true);
 
-        MenuItem center = new MenuItem("提醒中心");
-        center.addActionListener(e -> frame.showReminderCenter());
+        menu.addPopupMenuListener(new PopupMenuListener() {
+            @Override
+            public void popupMenuWillBecomeVisible(PopupMenuEvent event) {
+                // 不需要额外处理
+            }
 
-        MenuItem mute = new MenuItem("静音 1 小时");
-        mute.addActionListener(e -> {
+            @Override
+            public void popupMenuWillBecomeInvisible(PopupMenuEvent event) {
+                host.dispose();
+            }
+
+            @Override
+            public void popupMenuCanceled(PopupMenuEvent event) {
+                host.dispose();
+            }
+        });
+        menu.show(host, 0, 0);
+        trayMenu = menu;
+        menuHost = host;
+    }
+
+    private JPopupMenu buildMenu() {
+        JPopupMenu menu = new JPopupMenu();
+        menu.add(menuItem("显示主界面", frame::showFromTray));
+        menu.add(menuItem("立即检查提醒", frame::checkRemindersNow));
+        menu.add(menuItem("提醒中心", frame::showReminderCenter));
+        menu.addSeparator();
+        menu.add(menuItem("静音 1 小时", () -> {
             context.reminderService().muteFor(Duration.ofHours(1));
             frame.showToast("已静音 1 小时");
-        });
-
-        MenuItem unmute = new MenuItem("取消静音");
-        unmute.addActionListener(e -> {
+        }));
+        menu.add(menuItem("取消静音", () -> {
             context.reminderService().clearMute();
             frame.showToast("已恢复提醒");
-        });
-
-        MenuItem exit = new MenuItem("退出");
-        exit.addActionListener(e -> frame.exitApplication());
-
-        menu.add(open);
-        menu.add(check);
-        menu.add(center);
+        }));
         menu.addSeparator();
-        menu.add(mute);
-        menu.add(unmute);
-        menu.addSeparator();
-        menu.add(exit);
+        menu.add(menuItem("退出", frame::exitApplication));
         return menu;
+    }
+
+    private static JMenuItem menuItem(String text, Runnable action) {
+        JMenuItem item = new JMenuItem(text);
+        item.addActionListener(event -> action.run());
+        return item;
     }
 
     /** 发送气泡提醒（多条合并）。 */
@@ -145,7 +211,7 @@ public final class TrayController {
             return;
         }
         trayIcon.displayMessage("作业哨兵已在后台运行",
-                "双击托盘图标打开主界面；作业提醒会继续生效。", TrayIcon.MessageType.INFO);
+                "点击托盘图标打开菜单；作业提醒会继续生效。", TrayIcon.MessageType.INFO);
     }
 
     public void testNotification() {
@@ -163,6 +229,14 @@ public final class TrayController {
     }
 
     public void dispose() {
+        if (menuHost != null) {
+            menuHost.dispose();
+            menuHost = null;
+        }
+        if (trayMenu != null) {
+            trayMenu.setVisible(false);
+            trayMenu = null;
+        }
         if (trayIcon != null) {
             SystemTray.getSystemTray().remove(trayIcon);
             trayIcon = null;
