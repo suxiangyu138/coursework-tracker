@@ -294,7 +294,8 @@ public final class AboutDialog extends JDialog {
         gbc.gridx = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1;
-        JTextArea dataPath = new JTextArea(AppPaths.dataDir().toString());
+        JTextArea dataPath = new JTextArea("data/（与 jar 同级）");
+        dataPath.setToolTipText(AppPaths.dataDir().toString());
         dataPath.setEditable(false);
         dataPath.setOpaque(false);
         dataPath.setLineWrap(true);
