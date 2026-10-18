@@ -14,7 +14,7 @@
 | 作者 | 苏巷雨（学号：待填） |
 | 技术栈 | Java 17 · Swing + FlatLaf · SQLite（JDBC）· JFreeChart · Maven |
 | 运行环境 | Windows 10/11 优先，Linux / macOS 可运行；JDK 17 及以上 |
-| 当前状态 | `v0.1.0` 需求与方案设计完成，编码进行中 |
+| 当前状态 | `v1.0.0` 功能实现完成，68 条自动化测试通过，`--selftest` 自检通过 |
 
 ---
 
@@ -51,15 +51,16 @@
 | 系统 | 本地持久化 | SQLite 单文件，自动建库、事务写入 |
 | | 单实例运行 | 重复启动不产生两个托盘图标 |
 
-### P1 · 增强功能（时间允许则做）
+### P1 · 增强功能
 
-- 目标分反推：`期末考多少能拿 90`，不可达时明确提示
-- GPA 预估：加权绩点，4.0 制映射可配置
-- 静音时段（默认 23:00–07:00 不弹窗，次日汇总）
-- 错过提醒补偿：程序未运行期间错过的提醒，启动后汇总播报
-- 课程管理（学分、教师、目标分）
-- 数据导出 / 导入（JSON 备份、CSV 导出）
-- 深色主题、开机自启
+- ✅ 目标分反推：`期末考多少能拿 90`，不可达时明确提示
+- ✅ GPA 预估：加权绩点，标准 4.0 映射
+- ✅ 静音时段（默认 23:00–07:00 不弹窗，恢复后合并播报）
+- ✅ 错过提醒补偿：程序未运行期间错过的提醒，启动后补发一次
+- ✅ 课程管理（学分、教师、目标分）
+- ✅ 深色主题（设置中切换，即时生效）
+- ⬜ 数据导出 / 导入（当前可复制 `data/coursework.db` 备份，JSON 导入待做）
+- ⬜ 开机自启
 
 ### P2 · 扩展（不做，仅记录）
 
@@ -69,25 +70,16 @@
 
 ## 界面
 
-> 截图将在 M2 完成后补充到 `docs/assets/`。
+![主界面（浅色主题，示例数据）](docs/assets/main-light.png)
 
-```
-┌───────────────────────────────────────────────────────────────────────────┐
-│  作业哨兵        [+ 新建]  [课程 ▾]  [排序: 紧急度 ▾]  [🔍 搜索…]  [⚙]    │
-├──────────────┬────────────────────────────────────────────────────────────┤
-│ 课程          │  状态  课程        作业            截止        倒计时       │
-│ ▸ 全部 12     │  ☐  操作系统      实验三 进程调度  10-19 23:59  30:12:45 ⚠  │
-│ ▸ 操作系统 3  │  ☐  数据库        大作业 设计文档  10-24 18:00  5天 03:31   │
-│ ▸ 数据库   2  │  ☑  毛概          读书报告        10-18 22:00  已完成      │
-│ ▸ 计网     1  │  ☐  计算机网络    实验二          10-16 23:59  逾期 2天 🔴  │
-│ …             │                                                            │
-├──────────────┴────────────────────────────────────────────────────────────┤
-│ 今日 2 个截止 · 本周 5 个 · 完成率 38% · 权重完成度 41% · 预计 GPA 3.62   │
-│ [ 本周工作量柱状图 ]                    [ 各课程完成度条形图 ]             │
-├───────────────────────────────────────────────────────────────────────────┤
-│ 下次提醒扫描 14:26:00 · 数据: data/coursework.db                            │
-└───────────────────────────────────────────────────────────────────────────┘
-```
+![新建 / 编辑作业对话框](docs/assets/dialog-assignment.png)
+
+界面特点：
+
+- 左侧课程列表带完成率进度条，点击即筛选；
+- 表格按紧急度排序，倒计时按紧迫度着色，逾期显示深红；
+- 底部 6 个指标卡（今日/本周/逾期/完成率/权重完成度/预计 GPA）+ 两张图表；
+- 关闭窗口最小化到托盘，提醒以气泡弹出。
 
 ---
 
@@ -103,19 +95,26 @@
 ### 构建与运行
 
 ```bash
-# 1. 编译 + 打包（含依赖的 fat jar）
+# 1. 编译 + 测试 + 打包（含依赖的 fat jar）
 mvn clean package
 
 # 2. 运行
 java -jar target/coursework-tracker-1.0.0.jar
+
+# 3. 其他入口
+java -jar target/coursework-tracker-1.0.0.jar --seed-demo   # 仅生成示例数据（8 门课 / 20 条作业）
+java -jar target/coursework-tracker-1.0.0.jar --selftest    # 无界面自检：建库、算成绩、跑提醒
+java -jar target/coursework-tracker-1.0.0.jar --screenshot=docs/assets/main-light.png  # 渲染界面截图
 ```
+
+首次启动若数据库为空，程序会询问是否生成示例数据；也可以在「文件 → 生成示例数据」中随时生成。
 
 ### 数据文件
 
 | 路径 | 说明 |
 | --- | --- |
-| `data/coursework.db` | SQLite 数据库，首次启动自动创建 |
-| `logs/app.log` | 运行日志，按天滚动，保留 7 天 |
+| `data/coursework.db` | SQLite 数据库，首次启动自动创建（与 jar 同级） |
+| `logs/app.log` | 运行日志，单文件上限 5 MB |
 
 删除 `data/` 目录即恢复出厂状态；备份数据只需复制 `coursework.db`。
 
@@ -127,13 +126,13 @@ java -jar target/coursework-tracker-1.0.0.jar
 | --- | --- |
 | `java.time` 时间处理 | `LocalDateTime` / `Duration` / `DateTimeFormatter` 实现倒计时、逾期判定、时间格式化；时间源通过 `Clock` 注入，便于测试 |
 | 多线程与定时器 | `ScheduledExecutorService` 周期扫描提醒 + `javax.swing.Timer` 秒级刷新界面，Swing 单线程模型与后台线程通过 `SwingUtilities.invokeLater` 安全交接 |
-| 集合与排序 | `Comparator` 多级排序、`PriorityQueue` 演示、`TableRowSorter` 表头排序；自定义 `UrgencyScore` 排序键 |
+| 集合与排序 | `Comparator` 多级排序（紧急度 → 截止 → 权重 → id）、`TableRowSorter` 表头排序、`Record` 不可变数据 |
 | 面向对象设计 | 三层架构（UI / Service / DAO）、接口与实现分离、枚举状态机、不可变值对象（`record`） |
-| JDBC 数据库编程 | SQLite 连接管理、PreparedStatement 防注入、事务、索引、建表脚本与版本迁移 |
-| 图形界面 | Swing 自定义 `JTable` 渲染器（进度条、倒计时徽章）、事件监听、布局管理器、FlatLaf 主题 |
-| 图表绘制 | JFreeChart 柱状图 / 环形图封装为可复用面板 |
-| 文件与 IO | 单实例文件锁、日志滚动、JSON/CSV 导入导出 |
-| 测试 | JUnit 5 覆盖紧急度算法、时间工具、成绩计算等纯函数 |
+| JDBC 数据库编程 | SQLite 连接管理、PreparedStatement 防注入、事务、索引、外键级联、建表脚本与版本迁移 |
+| 图形界面 | Swing 自定义 `JTable` 渲染器（紧急度进度条、倒计时着色）、`ListCellRenderer`（课程进度条）、FlatLaf 主题 |
+| 图表绘制 | JFreeChart 柱状图封装为可复用面板，跟随浅色/深色主题 |
+| 文件与 IO | 单实例文件锁、日志文件、SQLite 数据文件备份 |
+| 测试 | JUnit 5：68 条自动化测试（含 12 条 DAO 集成测试），`@TempDir`/内存库隔离 |
 
 ---
 
@@ -141,34 +140,21 @@ java -jar target/coursework-tracker-1.0.0.jar
 
 ```text
 Java课程设计_作业截止提醒与进度追踪器/
-├── pom.xml                     # Maven 构建（M1 添加）
-├── README.md
-├── CHANGELOG.md
+├── pom.xml
+├── README.md / CHANGELOG.md
 ├── .gitignore / .gitattributes / .editorconfig
-├── docs/
-│   ├── 01-需求分析.md
-│   ├── 02-技术方案.md
-│   ├── 03-开发计划.md
-│   ├── 04-测试与验收.md
-│   ├── 05-课程设计交付说明.md
-│   └── assets/                 # 界面截图、流程图
-├── src/
-│   ├── main/
-│   │   ├── java/com/coursework/tracker/
-│   │   │   ├── App.java        # 入口：外观、单实例、托盘、主窗口
-│   │   │   ├── core/           # 上下文、事件总线、时钟、路径、单实例锁
-│   │   │   ├── model/          # 实体与值对象
-│   │   │   ├── dao/            # JDBC 数据访问
-│   │   │   ├── service/        # 业务逻辑（排序 / 提醒 / 统计 / 成绩）
-│   │   │   ├── ui/             # 窗口、面板、对话框、渲染器、托盘
-│   │   │   └── util/           # 时间、格式化、CSV 等工具
-│   │   └── resources/
-│   │       ├── db/schema.sql
-│   │       ├── icons/
-│   │       └── logging.properties
-│   └── test/java/…             # JUnit 5 单元测试
-├── scripts/                    # 启动脚本、打包脚本
-└── data/                       # 运行时生成，已 gitignore
+├── docs/                       # 需求、方案、计划、测试、交付说明、截图
+├── src/main/java/com/coursework/tracker/
+│   ├── App.java                # 入口：单实例、外观、托盘、主窗口、CLI 参数
+│   ├── SelfTest.java           # 无界面自检
+│   ├── core/                   # AppContext、AppPaths、ClockProvider、EventBus、单实例锁、日志
+│   ├── model/                  # Assignment、Course、Countdown、Urgency、ReminderRule、CourseGrade …
+│   ├── dao/                    # Database、SchemaMigrator、CourseDao、AssignmentDao、ReminderLogDao、SettingDao
+│   ├── service/                # 作业/课程服务、提醒规划与调度、统计、成绩、设置、示例数据
+│   ├── ui/                     # MainFrame、TrayController、ThemeManager、panel/、dialog/、table/
+│   └── util/                   # TimeUtils、Formatters、UrgencyCalculator、GradeCalculator
+├── src/main/resources/db/schema.sql
+└── src/test/java/…             # 6 个测试类，68 条测试
 ```
 
 ---
@@ -188,13 +174,13 @@ Java课程设计_作业截止提醒与进度追踪器/
 ## 开发进度
 
 - [x] **M0 需求与方案**：文件夹命名、Git 仓库、需求分析、技术方案、开发计划、测试方案
-- [ ] **M1 数据层**：`pom.xml`、模型、SQLite 建表、DAO、单元测试
-- [ ] **M2 主界面**：主窗口、作业表格、新建/编辑对话框、课程筛选
-- [ ] **M3 倒计时与排序**：秒级刷新、颜色语义、紧急度算法、多维度排序
-- [ ] **M4 提醒与托盘**：调度器、分级提醒、去重、托盘常驻、单实例
-- [ ] **M5 统计与图表**：完成度卡片、JFreeChart 图表、按课程统计
-- [ ] **M6 成绩预估**：加权得分、总评预估、目标分反推、GPA
-- [ ] **M7 打磨交付**：主题、异常兜底、README 截图、打包、演示彩排
+- [x] **M1 数据层**：`pom.xml`、模型、SQLite 建表、DAO、单元测试
+- [x] **M2 主界面**：主窗口、作业表格、新建/编辑对话框、课程筛选
+- [x] **M3 倒计时与排序**：秒级刷新、颜色语义、紧急度算法、多维度排序
+- [x] **M4 提醒与托盘**：调度器、分级提醒、去重、托盘常驻、单实例
+- [x] **M5 统计与图表**：完成度卡片、JFreeChart 图表、按课程统计
+- [x] **M6 成绩预估**：加权得分、总评预估、目标分反推、GPA
+- [x] **M7 打磨交付**：主题、异常兜底、README 截图、打包、自检
 
 ---
 
@@ -206,7 +192,7 @@ Java课程设计_作业截止提醒与进度追踪器/
 | 中文显示为方块 | 打包时未携带字体或系统缺少中文字体；本项目使用系统字体，正常不会出现 |
 | 提醒不弹窗 | Windows「通知和操作」中允许 Java 应用通知；程序内「设置 → 提醒开关」是否开启 |
 | 想清空数据 | 关闭程序，删除 `data/coursework.db` |
-| 换电脑 | 复制整个 `data/` 目录，或用「导出备份」功能（P1） |
+| 换电脑 | 复制整个 `data/` 目录到新机器的相同位置 |
 
 ---
 
