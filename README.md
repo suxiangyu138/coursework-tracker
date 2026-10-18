@@ -1,5 +1,10 @@
 # 作业哨兵 · CourseWorkTracker
 
+[![CI](https://github.com/suxiangyu138/coursework-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/suxiangyu138/coursework-tracker/actions/workflows/ci.yml)
+[![GitHub](https://img.shields.io/badge/GitHub-coursework--tracker-181717?logo=github)](https://github.com/suxiangyu138/coursework-tracker)
+[![Gitee](https://img.shields.io/badge/Gitee-coursework--tracker-C71D23?logo=gitee)](https://gitee.com/suxiangyu138/coursework-tracker)
+[![Java](https://img.shields.io/badge/Java-17-orange?logo=openjdk)](https://openjdk.org/projects/jdk/17/)
+
 > 一学期十几门课，作业截止日散落在雨课堂、学习通、班级群和老师的口头通知里。
 > 作业哨兵把它们收进一个常驻桌面的小工具：**还剩几天、先做哪个、做完多少、期末要考多少分**。
 
@@ -15,6 +20,23 @@
 | 技术栈 | Java 17 · Swing + FlatLaf · SQLite（JDBC）· JFreeChart · Maven |
 | 运行环境 | Windows 10/11 优先，Linux / macOS 可运行；JDK 17 及以上 |
 | 当前状态 | `v1.0.0` 功能实现完成，68 条自动化测试通过，`--selftest` 自检通过 |
+
+---
+
+## 远程仓库
+
+| 平台 | 地址 | 说明 |
+| --- | --- | --- |
+| GitHub（主） | <https://github.com/suxiangyu138/coursework-tracker> | 主仓库，GitHub Actions 自动跑测试 |
+| Gitee（镜像） | <https://gitee.com/suxiangyu138/coursework-tracker> | 国内访问更快 |
+
+```bash
+git clone https://github.com/suxiangyu138/coursework-tracker.git
+# 或
+git clone https://gitee.com/suxiangyu138/coursework-tracker.git
+```
+
+本地同时配置了两个远端：`origin`（GitHub）与 `gitee`（Gitee），推送时分别执行 `git push origin main`、`git push gitee main`。
 
 ---
 
