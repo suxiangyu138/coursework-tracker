@@ -11,6 +11,14 @@
 | `icon-256.png` | 应用图标（256px） | README 标题右侧 |
 | `icon-64.png` | 应用图标（64px） | 文档 / 宣传图 |
 
+图标源文件为 `packaging/icon-source.jpg`，由脚本统一裁切、圆角化并生成多尺寸资源：
+
+```bash
+python scripts/generate-icons.py
+```
+
+脚本输出 `src/main/resources/icons/app-icon-{16,20,24,32,40,48,64,96,128,256}.png`、`packaging/coursework-tracker.ico` 与本目录下的 `icon-256.png`、`icon-64.png`。
+
 ## 截图方式
 
 ```bash
