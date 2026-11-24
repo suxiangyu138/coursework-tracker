@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "packaging" / "icon-source.jpg"
-CROP = (300, 80, 1340, 1120)
+CROP = (161, 144, 1281, 1264)
 MASTER = 1024
 RADIUS_RATIO = 0.22
 SIZES = (16, 20, 24, 32, 40, 48, 64, 96, 128, 256)

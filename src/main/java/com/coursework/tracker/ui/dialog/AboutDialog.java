@@ -5,6 +5,7 @@ import com.coursework.tracker.core.AppInfo;
 import com.coursework.tracker.core.AppPaths;
 import com.coursework.tracker.ui.AppIcon;
 
+import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -32,6 +33,10 @@ import java.awt.RenderingHints;
 import java.awt.Window;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.Ellipse2D;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.awt.datatransfer.StringSelection;
 import java.awt.Toolkit;
@@ -42,6 +47,7 @@ public final class AboutDialog extends JDialog {
     private static final Color ACCENT = new Color(0x2563EB);
     private static final Color MUTED = new Color(0x6B7280);
     private static final Font UI_FONT = new Font("Microsoft YaHei UI", Font.PLAIN, 13);
+    private static final BufferedImage AUTHOR_AVATAR = loadAuthorAvatar();
 
     private final AppContext context;
 
@@ -57,6 +63,14 @@ public final class AboutDialog extends JDialog {
 
     public static void show(Window owner, AppContext context) {
         new AboutDialog(owner, context).setVisible(true);
+    }
+
+    private static BufferedImage loadAuthorAvatar() {
+        try (InputStream in = AboutDialog.class.getResourceAsStream("/icons/author-avatar.png")) {
+            return in == null ? null : ImageIO.read(in);
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     private void buildUi() {
@@ -156,15 +170,26 @@ public final class AboutDialog extends JDialog {
             protected void paintComponent(Graphics graphics) {
                 Graphics2D g = (Graphics2D) graphics.create();
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g.setPaint(new LinearGradientPaint(0, 0, getWidth(), getHeight(),
-                        new float[]{0f, 1f},
-                        new Color[]{new Color(0x4F46E5), new Color(0x0EA5E9)}));
-                g.fillOval(0, 0, getWidth(), getHeight());
-                g.setColor(Color.WHITE);
-                g.setFont(new Font("Microsoft YaHei UI", Font.BOLD, 26));
-                String text = "苏";
-                int width = g.getFontMetrics().stringWidth(text);
-                g.drawString(text, (getWidth() - width) / 2, getHeight() / 2 + 9);
+                if (AUTHOR_AVATAR != null) {
+                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                            RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                    g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                    g.clip(new Ellipse2D.Float(0, 0, getWidth(), getHeight()));
+                    g.drawImage(AUTHOR_AVATAR, 0, 0, getWidth(), getHeight(), null);
+                    g.setClip(0, 0, getWidth(), getHeight());
+                    g.setColor(new Color(0, 0, 0, 28));
+                    g.draw(new Ellipse2D.Float(0.5f, 0.5f, getWidth() - 1f, getHeight() - 1f));
+                } else {
+                    g.setPaint(new LinearGradientPaint(0, 0, getWidth(), getHeight(),
+                            new float[]{0f, 1f},
+                            new Color[]{new Color(0x4F46E5), new Color(0x0EA5E9)}));
+                    g.fillOval(0, 0, getWidth(), getHeight());
+                    g.setColor(Color.WHITE);
+                    g.setFont(new Font("Microsoft YaHei UI", Font.BOLD, 26));
+                    String text = "苏";
+                    int width = g.getFontMetrics().stringWidth(text);
+                    g.drawString(text, (getWidth() - width) / 2, getHeight() / 2 + 9);
+                }
                 g.dispose();
             }
         };
